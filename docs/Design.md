@@ -56,13 +56,23 @@ if (ignore_src_alpha == 0) {
 - context (framebuffer, clip rect, font context, sprite context, etc..)
   - allocate_context (allocate function, framebuffer, clip rect, font context, sprite context, etc..)
   - begin_frame (ctx, framebuffer, clip rect)
-    - push state
+    - push state 
+      - first state:
+        - scissor=framebuffer-size
+        - color=white (255, 255, 255, 255)
+        - blend state=alpha blending enabled
+        - sa=255
+        - sprite=default
+        - font=default
+        - fill=none
+        - rotation angle=0.0
+        - scale=1.0
       - set color
       - set blend state
       - set scissor rect
       - set sprite
       - set font
-      - set fill or thickness
+      - set fill
       - set rotation angle
       - set scale
     - pop state

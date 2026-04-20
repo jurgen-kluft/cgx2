@@ -2,11 +2,17 @@
 #define __CGX2_2D_GFX_H__
 #include "ccore/c_target.h"
 #ifdef USE_PRAGMA_ONCE
-#    pragma once
+    #pragma once
 #endif
 
 namespace ncore
 {
+    // ============================================================================
+    // Allocation
+    // ==========================================================================
+
+    class alloc_t;
+
     namespace ngx2
     {
         // ============================================================================
@@ -19,12 +25,6 @@ namespace ncore
         struct font_context_t;
         struct sprite_t;
         struct font_t;
-
-        // ============================================================================
-        // Allocation
-        // ==========================================================================
-
-        class alloc_t;
 
         // ============================================================================
         // Geometry & Utility Structs
@@ -48,17 +48,16 @@ namespace ncore
         {
             FRAMEBUFFER_RGBA8888 = 0,
             FRAMEBUFFER_RGB565,
-            FRAMEBUFFER_RGBA5551,
         };
 
-        framebuffer_t* new_framebuffer(alloc_t* alloc, void* user, u32 width, u32 height, u32 bpp, framebuffer_format_t format);
+        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, framebuffer_format_t format);
         void           release_framebuffer(framebuffer_t* framebuffer, alloc_t* allocator);
         void           clear_full_framebuffer(context_t* ctx, color_t color);
-        void           quantize_framebuffer(context_t* ctx, framebuffer_format_t target_format, framebuffer_t* target_framebuffer);
+        void           quantize_framebuffer(context_t* ctx, framebuffer_t* target_framebuffer);
 
         // ============================================================================
         // Blending
-        // ==========================================================================
+        // ============================================================================
 
         struct blend_state_t
         {
@@ -90,7 +89,6 @@ namespace ncore
         void set_blend_state(context_t* ctx, blend_state_t blend);
         void set_scissor_rect(context_t* ctx, rect_t rect);
         void set_fill(context_t* ctx, u8 enable); /* 0 or 1 */
-        void set_thickness(context_t* ctx, u16 pixels);
         void set_rotation(context_t* ctx, f32 angle);
         void set_scale(context_t* ctx, f32 sx, f32 sy);
         void set_sprite(context_t* ctx, sprite_t* sprite);
@@ -116,9 +114,7 @@ namespace ncore
         // Sprites
         // ==========================================================================
 
-        sprite_context_t* new_sprite_context(alloc_t* alloc, u32 max_sprites);
-        void              release_sprite_context(sprite_context_t* ctx, alloc_t* allocator);
-        void              register_sprites(sprite_context_t* ctx, const void* binary_data, u32 binary_size);
+        sprite_context_t* new_sprite_context(const void* binary_data, u32 binary_size);
         sprite_t*         get_sprite(sprite_context_t* ctx, u32 sprite_id);
         void              draw_sprite(context_t* ctx, i32 x, i32 y);
 
@@ -126,9 +122,7 @@ namespace ncore
         // Fonts / Text
         // ==========================================================================
 
-        font_context_t* new_font_context(alloc_t* alloc, u32 max_fonts, u32 max_glyphs);
-        void            release_font_context(font_context_t* ctx, alloc_t* allocator);
-        void            register_fonts(font_context_t* ctx, const void* binary_data, u32 binary_size);
+        font_context_t* new_font_context(const void* binary_data, u32 binary_size);
         font_t*         get_font(font_context_t* ctx, u32 font_id);
         void            draw_text(context_t* ctx, i32 x, i32 y, const char* text);
 
