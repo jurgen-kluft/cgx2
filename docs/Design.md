@@ -8,6 +8,7 @@
 - internal structures are hidden from the user
 - simple API for drawing shapes, text, and sprites
 - all drawing functions must be deterministic and produce the same output given the same input
+- offline tools are written in Go
 
 ## Focus
 
@@ -94,10 +95,12 @@ if (ignore_src_alpha == 0) {
   - allocate_sprite_context (allocate function, array of sprite data, array max/size)
   - load sprite from custom binary file format (e.g. RGBA5551, RGBA8888, 8-Bit color palette, 1-Bit, etc..)
   - golang tool to convert image files (e.g. PNG, BMP, etc..) to our binary format sprite pack
+    - see go-gx2/cmd/pack-sprite for details
   - draw_sprite (ctx, x, y)
 - font rendering:
   - font context (array of font and glyph data, array max/size)
   - allocate_font_context (allocate function, array of font and glyph data, array max/size)
   - load glyph and font data from custom binary file format
   - golang tool to convert TTF font files to our binary format font pack
+    - see go-gx2/cmd/pack-font for details
   - draw_text (ctx, x, y, text)

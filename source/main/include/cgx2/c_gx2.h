@@ -40,17 +40,21 @@ namespace ncore
             u8 r, g, b, a;
         };
 
+        enum image_format_t
+        {
+            FORMAT_RGB565   = 0x0100,
+            FORMAT_RGB565A1 = 0x0101,
+            FORMAT_RGB565A4 = 0x0104,
+            FORMAT_RGB565A8 = 0x0108,
+            FORMAT_RGBA8888 = 0x0200,
+            FORMAT_I8       = 0x0300,
+        };
+
         // ============================================================================
         // Framebuffer
         // ==========================================================================
 
-        enum framebuffer_format_t
-        {
-            FRAMEBUFFER_RGBA8888 = 0,
-            FRAMEBUFFER_RGB565,
-        };
-
-        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, framebuffer_format_t format);
+        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, image_format_t format);
         void           release_framebuffer(framebuffer_t* framebuffer, alloc_t* allocator);
         void           clear_full_framebuffer(context_t* ctx, color_t color);
         void           quantize_framebuffer(context_t* ctx, framebuffer_t* target_framebuffer);

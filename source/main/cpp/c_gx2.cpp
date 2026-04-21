@@ -15,14 +15,14 @@ namespace ncore
 
         struct framebuffer_t
         {
-            u16                  width;   // width in pixels
-            u16                  height;  // height in pixels
-            framebuffer_format_t format;  // pixel format
-            union
-            {
-                color_t* rgba8888;  // RGBA8888 pixel buffer
-                u16*     rgb565;    // RGB565 pixel buffer
-            };
+            u16            width;   // width in pixels
+            u16            height;  // height in pixels
+            image_format_t format;  // pixel format
+            u16            reserved;
+            void*          pixels;  // pixel data
+
+            inline color_t* rgba8888() { return static_cast<color_t*>(pixels); }  // RGBA8888 pixel buffer
+            inline u16*     rgb565() { return static_cast<u16*>(pixels); }        // RGB565 pixel buffer
         };
 
         // ============================================================================
@@ -64,9 +64,15 @@ namespace ncore
 
         struct sprite_t
         {
-            u32        width;
-            u32        height;
-            const u32* pixels;
+            u16            width;
+            u16            height;
+            u16            format;
+            u16            reserved;
+            u32            pixel_data_size;
+            u32            alpha_data_size;
+            const void*    pixel_data;
+            const void*    alpha_data;
+            const color_t* palette_data;  // always u32[256] RGBA8888 palette, used only if pixel_format is indexed
         };
 
         struct sprite_context_t
@@ -74,8 +80,6 @@ namespace ncore
             sprite_t* sprites;
             u32       count;
             u32       reserved;  // padding to make sizeof(sprite_context_t) a multiple of 8
-
-            DCORE_CLASS_PLACEMENT_NEW_DELETE
         };
 
         // ============================================================================
@@ -84,30 +88,31 @@ namespace ncore
 
         struct glyph_t
         {
-            i16       advance_x;  // how much to move the pen horizontally to the next character after drawing this one
-            i16       bearing_x;  // horizontal distance from the pen position to the left edge of the glyph bitmap
-            i16       bearing_y;  // vertical distance from the pen position to the top edge of the glyph bitmap (can be negative)
-            u16       width;      // width of the glyph bitmap in pixels
-            u16       height;     // height of the glyph bitmap in pixels
-            const u8* bitmap;     // alpha or coverage bitmap
+            i16 advance_x;  // how much to move the pen horizontally to the next character after drawing this one
+            i16 bearing_x;  // horizontal distance from the pen position to the left edge of the glyph bitmap
+            i16 bearing_y;  // vertical distance from the pen position to the top edge of the glyph bitmap (can be negative)
+            u16 width;      // width of the glyph bitmap in pixels
+            u16 height;     // height of the glyph bitmap in pixels
         };
 
+        // sizeof(font_t) must be a multiple of 8 to ensure alignment
         struct font_t
         {
-            glyph_t* glyphs;    // array of glyphs, indexed by glyph index (not ASCII code)
-            u8       map[256];  // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
-            i16      ascent;    // distance from baseline to top of font
-            i16      descent;   // distance from baseline to bottom of font (negative value)
-            i16      line_gap;  // distance from bottom of one line to top of next line (can be negative)
+            glyph_t*   glyphs;    // array of glyphs, indexed by glyph index (not ASCII code)
+            const u8** bitmaps;   // alpha or coverage bitmap
+            u8         map[256];  // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
+            i16        ascent;    // distance from baseline to top of font
+            i16        descent;   // distance from baseline to bottom of font (negative value)
+            i16        line_gap;  // distance from bottom of one line to top of next line (can be negative)
+            i16        reserved;  // padding to make sizeof(font_t) a multiple of 8
         };
 
+        // sizeof(font_context_t) must be a multiple of 8 to ensure alignment
         struct font_context_t
         {
             font_t* fonts;
-            u32     font_count;
-            u32     font_capacity;
-
-            DCORE_CLASS_PLACEMENT_NEW_DELETE
+            u32     count;
+            u32     reserved;
         };
 
         // ============================================================================
@@ -165,7 +170,7 @@ namespace ncore
             const color_t& src = ctx->state->color;
 
             framebuffer_t* fb  = ctx->framebuffer;
-            color_t&       dst = fb->rgba8888[x + y * (i32)fb->width];
+            color_t&       dst = fb->rgba8888()[x + y * (i32)fb->width];
 
             const u32 sa = ctx->state->sa + 1;  // add 1 to convert from 0..255 to 1..256 for easier math
             if (sa == 256u)
@@ -211,7 +216,7 @@ namespace ncore
             const u32      sa  = ctx->state->sa + 1;  // keep math identical to s_put_pixel
 
             framebuffer_t* fb  = ctx->framebuffer;
-            color_t*       dst = &fb->rgba8888[x0 + y * (i32)fb->width];
+            color_t*       dst = &fb->rgba8888()[x0 + y * (i32)fb->width];
             if (sa == 256u)
             {
                 for (i32 x = x0; x <= x1; ++x, ++dst)
@@ -274,7 +279,7 @@ namespace ncore
         // Framebuffer
         // ============================================================================
 
-        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, framebuffer_format_t format)
+        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, image_format_t format)
         {
             framebuffer_t* fb = (framebuffer_t*)alloc->allocate(sizeof(framebuffer_t));
             if (fb)
@@ -286,8 +291,8 @@ namespace ncore
                 const u32 pixel_count = (u32)width * (u32)height;
                 switch (format)
                 {
-                    case FRAMEBUFFER_RGBA8888: fb->rgba8888 = (color_t*)alloc->allocate(sizeof(color_t) * pixel_count, alignof(color_t)); break;
-                    case FRAMEBUFFER_RGB565: fb->rgb565 = (u16*)alloc->allocate(sizeof(u16) * pixel_count, alignof(u16)); break;
+                    case FORMAT_RGBA8888: fb->pixels = g_allocate_array<color_t>(alloc, pixel_count); break;
+                    case FORMAT_RGB565: fb->pixels = g_allocate_array<u16>(alloc, pixel_count); break;
                     default: alloc->deallocate(fb); return nullptr;
                 }
             }
@@ -299,11 +304,7 @@ namespace ncore
             if (framebuffer)
             {
                 const u32 pixel_count = (u32)framebuffer->width * (u32)framebuffer->height;
-                switch (framebuffer->format)
-                {
-                    case FRAMEBUFFER_RGBA8888: allocator->deallocate(framebuffer->rgba8888); break;
-                    case FRAMEBUFFER_RGB565: allocator->deallocate(framebuffer->rgb565); break;
-                }
+                g_deallocate_array(allocator, framebuffer->pixels);
                 allocator->deallocate(framebuffer);
             }
         }
@@ -311,13 +312,14 @@ namespace ncore
         void clear_full_framebuffer(context_t* ctx, color_t color)
         {
             framebuffer_t* fb = ctx->framebuffer;
-            if (fb->format == FRAMEBUFFER_RGBA8888)
+            if (fb->format == FORMAT_RGBA8888)
             {
                 const u32 pixel_count = (u32)fb->width * (u32)fb->height;
+                color_t*  pixels      = ctx->framebuffer->rgba8888();
                 for (u32 i = 0; i < pixel_count; ++i)
-                    fb->rgba8888[i] = color;
+                    pixels[i] = color;
             }
-            else if (fb->format == FRAMEBUFFER_RGB565)
+            else if (fb->format == FORMAT_RGB565)
             {
                 // Convert RGBA8888 to RGB565 with simple bit-shift truncation (no dithering or error diffusion).
                 const u16 r5 = color.r >> 3;
@@ -326,8 +328,9 @@ namespace ncore
                 const u16 c  = (r5 << 11) | (g6 << 5) | b5;
 
                 const u32 pixel_count = (u32)fb->width * (u32)fb->height;
+                u16*      pixels      = ctx->framebuffer->rgb565();
                 for (u32 i = 0; i < pixel_count; ++i)
-                    fb->rgb565[i] = c;
+                    pixels[i] = c;
             }
         }
 
@@ -341,18 +344,20 @@ namespace ncore
                 return;
 
             framebuffer_t* src = ctx->framebuffer;
-            if (src->format == FRAMEBUFFER_RGBA8888)
+            if (src->format == FORMAT_RGBA8888)
             {
-                if (target_framebuffer->format == FRAMEBUFFER_RGB565)
+                if (target_framebuffer->format == FORMAT_RGB565)
                 {
                     const u32 pixel_count = (u32)src->width * (u32)src->height;
+                    color_t*  src_pixels  = src->rgba8888();
+                    u16*      dst_pixels  = target_framebuffer->rgb565();
                     for (u32 i = 0; i < pixel_count; ++i)
                     {
-                        const color_t& c              = src->rgba8888[i];
-                        const u16      r5             = c.r >> 3;
-                        const u16      g6             = c.g >> 2;
-                        const u16      b5             = c.b >> 3;
-                        target_framebuffer->rgb565[i] = (r5 << 11) | (g6 << 5) | b5;
+                        const color_t& c  = src_pixels[i];
+                        const u16      r5 = c.r >> 3;
+                        const u16      g6 = c.g >> 2;
+                        const u16      b5 = c.b >> 3;
+                        dst_pixels[i]     = (r5 << 11) | (g6 << 5) | b5;
                     }
                 }
             }
@@ -714,8 +719,12 @@ namespace ncore
 
             for (u32 i = 0; i < ctx->count; i++)
             {
-                sprite_t* sprite = &ctx->sprites[i];
-                sprite->pixels   = (const u32*)((const u8*)binary_data + (u64)sprite->pixels);
+                sprite_t* sprite   = &ctx->sprites[i];
+                sprite->pixel_data = ((const u8*)binary_data + (u64)sprite->pixel_data);
+                if (sprite->alpha_data > 0)
+                    sprite->alpha_data = ((const u8*)binary_data + (u64)sprite->alpha_data);
+                if (sprite->palette_data)
+                    sprite->palette_data = (const color_t*)((const u8*)binary_data + (u64)sprite->palette_data);
             }
 
             return ctx;
@@ -777,10 +786,13 @@ namespace ncore
 
             const u32 global_alpha = (u32)ctx->state->blend.alpha + 1u;
 
+            color_t* dst_base = fb->rgba8888();
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
             {
-                const u32* src = &sprite.pixels[(src_y0 + j) * (i32)sprite.width + src_x0];
-                color_t*   dst = &fb->rgba8888[draw_x0 + (draw_y0 + j) * fb_w];
+                // TODO, a sprite might have a different pixel format as well as a separate alpha map
+
+                const u32* src = &((const u32*)sprite.pixel_data)[(src_y0 + j) * (i32)sprite.width + src_x0];
+                color_t*   dst = &dst_base[draw_x0 + (draw_y0 + j) * fb_w];
 
                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                 {
@@ -819,12 +831,13 @@ namespace ncore
             // The format of the binary data:
             //   - [u64 offset to font 0 glyph data from start of binary]
             //   - [u32 font_count]
+            //   - [u32 reserved]
             //   - font_t[font_count]
 
             font_context_t* ctx = (font_context_t*)binary_data;
             ctx->fonts          = (font_t*)((const u8*)binary_data + (u64)ctx->fonts);
 
-            for (u32 i = 0; i < ctx->font_count; i++)
+            for (u32 i = 0; i < ctx->count; i++)
             {
                 font_t* font = &ctx->fonts[i];
                 font->glyphs = (glyph_t*)((const u8*)binary_data + (u64)font->glyphs);
@@ -835,7 +848,7 @@ namespace ncore
 
         font_t* get_font(font_context_t* ctx, u32 font_id)
         {
-            if (font_id >= ctx->font_count)
+            if (font_id >= ctx->count)
                 return nullptr;
             return &ctx->fonts[font_id];
         }
