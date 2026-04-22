@@ -840,6 +840,7 @@ namespace ncore
             {
                 font_t* font = &ctx->fonts[i];
                 font->glyphs = (glyph_t*)((const u8*)binary_data + (u64)font->glyphs);
+                font->bitmaps = (const u8**)((const u8*)binary_data + (u64)font->bitmaps);
             }
 
             return ctx;
@@ -854,7 +855,24 @@ namespace ncore
 
         void draw_text(context_t* ctx, i32 x, i32 y, const char* text)
         {
-            // not implemented yet
+            // Drawing text is a bit more complex because of font metrics, but the basic idea is:
+            // - User requests to draw text at a certain position (top left corner x,y) with the
+            //   current font and state.
+            // For each character in the text:
+            //   - Look up the glyph for the character in the font's map.
+            //   - If the glyph exists, draw its bitmap at the appropriate position, applying the
+            //     glyph's advance and bearing to position the next character correctly.
+            //   - If the glyph does not exist, skip it or draw a placeholder like ' ' or '?'.
+            // - The glyph bitmap is drawn using the current color and alpha, and should be blended
+            //   with the framebuffer if the blend alpha is less than 255.
+
+            // TODO Implement text drawing using the font context and glyph metrics.
+            //      This will involve iterating over each character in the text, looking up the
+            //      corresponding glyph in the font, and then drawing the glyph's bitmap onto the
+            //      framebuffer at the correct position, applying the current color and blend state
+            //      for alpha blending. The positioning of each glyph will need to take into account
+            //      the advance and bearing values from the glyph metrics to ensure proper spacing
+            //      between characters.
         }
 
     }  // namespace ngx2
