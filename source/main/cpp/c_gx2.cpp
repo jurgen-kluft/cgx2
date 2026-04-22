@@ -303,7 +303,6 @@ namespace ncore
         {
             if (framebuffer)
             {
-                const u32 pixel_count = (u32)framebuffer->width * (u32)framebuffer->height;
                 g_deallocate_array(allocator, framebuffer->pixels);
                 allocator->deallocate(framebuffer);
             }
@@ -721,9 +720,9 @@ namespace ncore
             {
                 sprite_t* sprite   = &ctx->sprites[i];
                 sprite->pixel_data = ((const u8*)binary_data + (u64)sprite->pixel_data);
-                if (sprite->alpha_data > 0)
+                if (sprite->alpha_data != 0)
                     sprite->alpha_data = ((const u8*)binary_data + (u64)sprite->alpha_data);
-                if (sprite->palette_data)
+                if (sprite->palette_data != 0)
                     sprite->palette_data = (const color_t*)((const u8*)binary_data + (u64)sprite->palette_data);
             }
 

@@ -21,8 +21,6 @@ namespace ncore
             u8* payload;      // Pointer to the data for this block
         };
 
-#define DIFF_BLOCK_H 16  // Height of block
-
         // Initialize a diff_block_t with the provided payload buffer and size.
         // The payload buffer should be large enough to hold the maximum possible
         // block data (width * DIFF_BLOCK_H * DIFF_BPE).
@@ -30,19 +28,21 @@ namespace ncore
 
         struct diff_engine_t
         {
-            u32       width;           // number of elements in a row
-            u32       height;          // number of rows
-            u32       columns;         // columns = number of blocks in the x direction (width / DIFF_BLOCK_W, rounded up)
-            u32       rows;            // rows = number of blocks in the y direction (height / DIFF_BLOCK_H, rounded up)
-            u8        bpe;             // bytes per element in the framebuffer (e.g., 4 for RGBA)
-            const u8* prev_data;       // pointer to previous data
-            const u8* curr_data;       // pointer to current data
-            u32       state;           // 0 = uninitialized, 2 = computing, 3 = done
-            u32       current_column;  // current block column being processed
-            u32       current_row;     // current block row being processed
+            u16       cellCountH;      // number of cells on the horizontal axis
+            u16       cellCountV;      // number of cells on the vertical axis
+            u16       cellsPerBlockH;  // width of a block in cells (e.g. 16)
+            u16       cellsPerBlockV;  // height of a block in cells (e.g. 16)
+            u16       blockCountH;     // number of blocks in the horizontal direction (cellCountH / (cellsPerBlockH*bytesPerCell), rounded up)
+            u16       blockCountV;     // number of blocks in the vertical direction (cellCountV / cellsPerBlockV, rounded up)
+            u16       currentBlockH;   // current block on the horizontal axis being processed
+            u16       currentBlockV;   // current block on the vertical axis being processed
+            const u8* prevData;        // pointer to previous data
+            const u8* currData;        // pointer to current data
+            u16       bytesPerCell;    // bytes per cell in the framebuffer (e.g. 4 for RGBA)
+            u16       state;           // 0 = uninitialized, 2 = computing, 3 = done
         };
 
-        void diff_engine_init(diff_engine_t& ctx, u32 width, u32 height, u8 bytesPerElement, const u8* prev_data, const u8* curr_data);
+        void diff_engine_init(diff_engine_t& ctx, u16 widthInCells, u16 heightInCells, u16 cellsPerBlockH, u16 cellsPerBlockV, u8 bytesPerCell, const u8* prevData, const u8* currData);
         bool diff_engine_compute(diff_engine_t& ctx, diff_block_t& block);
 
     }  // namespace ngx2

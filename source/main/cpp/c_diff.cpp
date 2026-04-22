@@ -10,28 +10,18 @@ namespace ncore
     {
         static inline u32 s_min_u32(u32 a, u32 b) { return (a < b) ? a : b; }
 
-#define DIFF_BLOCK_W 16
-#define DIFF_BPP     16  // RGB565 format, bits per pixel
-
-#define DIFF_MAX_BLOCKS_X 32
-#define DIFF_MAX_BLOCKS_Y 32
-#define DIFF_MAX_UPDATES  512
-
-        static inline bool diff_blocks_equal(u32 w, u32 h, const u8* prev_fb, const u8* curr_fb, u8 bx, u8 by)
+        static inline bool diff_blocks_equal(const u8* prevData, const u8* currData, u32 numCellsH, u32 numCellsV, u16 cellsPerBlockH, u16 cellsPerBlockV, u16 bytesPerCell, u16 bx, u16 by)
         {
-            const u32 xs = bx * DIFF_BLOCK_W;
-            const u32 ys = by * DIFF_BLOCK_H;
-            const u32 xe = s_min_u32(xs + DIFF_BLOCK_W, w);
-            const u32 ye = s_min_u32(ys + DIFF_BLOCK_H, h);
-
-            u32 row_off = ys * w * DIFF_BPP;
-            for (u32 y = ys; y < ye; ++y)
+            const u32 blockWidthInCells  = s_min_u32(cellsPerBlockH, numCellsH - (u32)bx * cellsPerBlockH);
+            const u32 blockHeightInCells = s_min_u32(cellsPerBlockV, numCellsV - (u32)by * cellsPerBlockV);
+            const u32 rowSizeInBytes     = blockWidthInCells * bytesPerCell;
+            const u32 src_col_off        = ((u32)bx * cellsPerBlockH) * bytesPerCell;
+            u32       src_row_off        = ((u32)by * cellsPerBlockV) * numCellsH * bytesPerCell;
+            for (u32 y = 0; y < blockHeightInCells; ++y)
             {
-                u32 col_off = xs * DIFF_BPP;
-                u32 bytes   = (xe - xs) * DIFF_BPP;
-                if (g_memcmp(prev_fb + row_off + col_off, curr_fb + row_off + col_off, bytes) != 0)
+                if (g_memcmp(prevData + src_row_off + src_col_off, currData + src_row_off + src_col_off, rowSizeInBytes) != 0)
                     return false;
-                row_off += w * DIFF_BPP;
+                src_row_off += numCellsH * bytesPerCell;
             }
             return true;
         }
@@ -42,23 +32,26 @@ namespace ncore
             block.ri          = 0;
             block.cn          = 0;
             block.padding     = 0;
-            block.pixel_w     = 0;
-            block.pixel_h     = 0;
+            block.w           = 0;
+            block.h           = 0;
             block.payload_len = 0;
             block.payload     = (buffer_size > 0) ? payload_buffer : nullptr;
         }
 
-        void diff_engine_init(diff_engine_t& ctx, u32 width, u32 height, const u8* prev_fb, const u8* curr_fb)
+        void diff_engine_init(diff_engine_t& ctx, u16 widthInCells, u16 heightInCells, u16 cellsPerBlockH, u16 cellsPerBlockV, u8 bytesPerCell, const u8* prevData, const u8* currData)
         {
-            ctx.width          = width;
-            ctx.height         = height;
-            ctx.columns        = (width + DIFF_BLOCK_W - 1) / DIFF_BLOCK_W;
-            ctx.rows           = (height + DIFF_BLOCK_H - 1) / DIFF_BLOCK_H;
-            ctx.prev_fb        = prev_fb;
-            ctx.curr_fb        = curr_fb;
-            ctx.state          = 0;
-            ctx.current_column = 0;
-            ctx.current_row    = 0;
+            ctx.cellCountH      = widthInCells;
+            ctx.cellCountV      = heightInCells;
+            ctx.cellsPerBlockH  = cellsPerBlockH;
+            ctx.cellsPerBlockV  = cellsPerBlockV;
+            ctx.blockCountH     = (widthInCells + cellsPerBlockH - 1) / cellsPerBlockH;
+            ctx.blockCountV     = (heightInCells + cellsPerBlockV - 1) / cellsPerBlockV;
+            ctx.currentBlockH = 0;
+            ctx.currentBlockV = 0;
+            ctx.prevData       = prevData;
+            ctx.currData       = currData;
+            ctx.bytesPerCell    = bytesPerCell;
+            ctx.state           = 0;  // uninitialized
         }
 
         // Computes the next diff span that can occur on the current row, starting from the current column.
@@ -70,59 +63,92 @@ namespace ncore
             if (ctx.state == 3)
                 return false;
 
-            while (ctx.current_row < ctx.rows)
+            if (ctx.state == 0)
             {
-                u8 nc    = 0;                   // count of contiguous dirty blocks in the current row
-                block.ci = ctx.current_column;  // initialize column index to 0 for the start of the row
-                for (; ctx.current_column < ctx.columns; ++ctx.current_column)
-                {
-                    if (!diff_blocks_equal(ctx.width, ctx.height, ctx.prev_fb, ctx.curr_fb, ctx.current_column, ctx.current_row))
-                    {
-                        if (nc == 0)
-                        {
-                            // start of a new run of dirty blocks
-                            block.ci = ctx.current_column;
-                        }
-                        ++nc;
-                    }
-                    else if (nc > 0)
-                    {
-                        break;  // end of a run of dirty blocks, emit the block/span
-                    }
-                }
-
-                if (nc > 0)
-                {
-                    // End of a run of dirty blocks at the end of the row, emit the block/span
-                    block.ri          = ctx.current_row;
-                    block.cn          = nc;
-                    block.pixel_w     = s_min_u32((u32)nc * DIFF_BLOCK_W, ctx.width - (u32)block.ci * DIFF_BLOCK_W);
-                    block.pixel_h     = s_min_u32(DIFF_BLOCK_H, ctx.height - (u32)block.ri * DIFF_BLOCK_H);
-                    block.payload_len = (u32)block.pixel_w * block.pixel_h * DIFF_BPP;
-
-                    // Copy the pixel data for this block from the current framebuffer into the block's payload buffer
-                    u32 src_row_off = (u32)(block.ri * DIFF_BLOCK_H) * ctx.width * DIFF_BPP;
-                    u32 dst_off     = (u32)block.pixel_w * DIFF_BPP;
-                    for (u32 y = 0; y < block.pixel_h; ++y)
-                    {
-                        const u32 src_col_off = (u32)block.ci * DIFF_BLOCK_W * DIFF_BPP;
-                        g_memcpy(block.payload + dst_off, ctx.curr_fb + src_row_off + src_col_off, block.pixel_w * DIFF_BPP);
-                        src_row_off += ctx.width * DIFF_BPP;
-                        dst_off += block.pixel_w * DIFF_BPP;
-                    }
-
-                    ctx.state = 2;  // computing
-                    return true;
-                }
-
-                // No more dirty blocks in this row, move to the next row
-                ctx.current_column = 0;
-                ++ctx.current_row;
+                ctx.currentBlockH = 0;
+                ctx.currentBlockV = 0;
+                ctx.state           = 2;
             }
 
-            ctx.state = 3;  // done
+            const u32 numCellsH = ctx.cellCountH;
+            const u32 numCellsV = ctx.cellCountV;
+
+            while (ctx.currentBlockV < ctx.blockCountV)
+            {
+                const u16 by = ctx.currentBlockV;
+
+                // Find the first changed block on this row.
+                while (ctx.currentBlockH < ctx.blockCountH)
+                {
+                    const u16 bx = ctx.currentBlockH;
+                    if (!diff_blocks_equal(ctx.prevData, ctx.currData, numCellsH, numCellsV, ctx.cellsPerBlockH, ctx.cellsPerBlockV, ctx.bytesPerCell, bx, by))
+                        break;
+                    ++ctx.currentBlockH;
+                }
+
+                // No changed span on this row, continue with the next row.
+                if (ctx.currentBlockH >= ctx.blockCountH)
+                {
+                    ctx.currentBlockH = 0;
+                    ++ctx.currentBlockV;
+                    continue;
+                }
+
+                const u16 start_bx = ctx.currentBlockH;
+                u16       end_bx   = start_bx;
+                while (end_bx < ctx.blockCountH)
+                {
+                    if (diff_blocks_equal(ctx.prevData, ctx.currData, numCellsH, numCellsV, ctx.cellsPerBlockH, ctx.cellsPerBlockV, ctx.bytesPerCell, end_bx, by))
+                        break;
+                    ++end_bx;
+                }
+
+                const u32 maxSpanCellsW = (u32)(end_bx - start_bx) * ctx.cellsPerBlockH;
+                const u32 startCellX    = (u32)start_bx * ctx.cellsPerBlockH;
+                const u32 startCellY    = (u32)by * ctx.cellsPerBlockV;
+
+                const u32 spanCellsW  = s_min_u32(maxSpanCellsW, numCellsH - startCellX);
+                const u32 spanCellsH  = s_min_u32((u32)ctx.cellsPerBlockV, numCellsV - startCellY);
+                const u32 rowBytes    = spanCellsW * ctx.bytesPerCell;
+                const u32 payloadSize = rowBytes * spanCellsH;
+
+                block.ci          = (u8)start_bx;
+                block.ri          = (u8)by;
+                block.cn          = (u8)(end_bx - start_bx);
+                block.padding     = 0;
+                block.w           = (u16)spanCellsW;
+                block.h           = (u16)spanCellsH;
+                block.payload_len = payloadSize;
+
+                if (block.payload != nullptr && payloadSize > 0)
+                {
+                    const u32 src_col_off = startCellX * ctx.bytesPerCell;
+                    u32       src_row_off = startCellY * numCellsH * ctx.bytesPerCell;
+                    u32       dst_row_off = 0;
+                    for (u32 y = 0; y < spanCellsH; ++y)
+                    {
+                        g_memcpy(block.payload + dst_row_off, ctx.currData + src_row_off + src_col_off, rowBytes);
+                        src_row_off += numCellsH * ctx.bytesPerCell;
+                        dst_row_off += rowBytes;
+                    }
+                }
+
+                ctx.currentBlockH = end_bx;
+                return true;
+            }
+
+            ctx.state           = 3;
+            block.ci            = 0;
+            block.ri            = 0;
+            block.cn            = 0;
+            block.padding       = 0;
+            block.w             = 0;
+            block.h             = 0;
+            block.payload_len   = 0;
+            ctx.currentBlockH = 0;
             return false;
+
         }
 
-    }  // namespace nmui
+    }  // namespace ngx2
 }  // namespace ncore

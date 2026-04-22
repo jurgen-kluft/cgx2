@@ -3,6 +3,7 @@ package cgx2
 import (
 	denv "github.com/jurgen-kluft/ccode/denv"
 	ccore "github.com/jurgen-kluft/ccore/package"
+	cunittest "github.com/jurgen-kluft/cunittest/package"
 )
 
 const (
@@ -15,15 +16,28 @@ func GetPackage() *denv.Package {
 
 	// dependencies
 	ccorepkg := ccore.GetPackage()
+	cunittestpkg := cunittest.GetPackage()
 
 	// main package
 	mainpkg := denv.NewPackage(repo_path, repo_name)
 	mainpkg.AddPackage(ccorepkg)
+	mainpkg.AddPackage(cunittestpkg)
 
 	// main library
 	mainlib := denv.SetupCppLibProject(mainpkg, name)
 	mainlib.AddDependencies(ccorepkg.GetMainLib())
 
+	// test library
+	testlib := denv.SetupCppTestLibProject(mainpkg, name)
+	testlib.AddDependencies(ccorepkg.GetTestLib())
+
+	// unittest project
+	maintest := denv.SetupCppTestProject(mainpkg, name)
+	maintest.AddDependencies(cunittestpkg.GetMainLib())
+	maintest.AddDependency(testlib)
+
 	mainpkg.AddMainLib(mainlib)
+	mainpkg.AddTestLib(testlib)
+	mainpkg.AddUnittest(maintest)
 	return mainpkg
 }
