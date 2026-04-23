@@ -8,7 +8,7 @@
 namespace ncore
 {
     class alloc_t;
-    
+
     namespace ngx2
     {
         typedef u64 hash_t;
@@ -27,11 +27,10 @@ namespace ncore
             hash_t* m_cell_hash_array;  // array of cell hashes [row-major order, size = width * height]
         };
 
-        struct framebuffer_t;
-
         // Create a framestate_t for the provided frame buffer.
-        framestate_t* create_framestate(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v);
-        void          update_framestate(framestate_t* diffState, framebuffer_t* fb);
+        framestate_t* create_framestate(alloc_t* allocator, framedescr_t const& fd, u8 cell_size_h, u8 cell_size_v);
+        void          release_framestate(alloc_t* allocator, framestate_t* state);
+        void          update_framestate(framestate_t* diffState, framedescr_t const& fd, const u8* pixel_data);
         bool          compare_framestate(const framestate_t* prevState, const framestate_t* currState);
 
         // Iterate through the differences between two framestates, start with cell_x = 0, cell_y = 0.

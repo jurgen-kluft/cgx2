@@ -16,13 +16,13 @@ namespace ncore
             return 0;
         }
 
-        framestate_t* create_framestate(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v)
+        framestate_t* create_framestate(alloc_t* allocator, framedescr_t const& fd, u8 cell_size_h, u8 cell_size_v)
         {
-            if (!allocator || !fb || cell_size_h == 0 || cell_size_v == 0)
+            if (!allocator || cell_size_h == 0 || cell_size_v == 0)
                 return nullptr;
 
-            const u32 cells_v     = (fb->height + cell_size_v - 1) / cell_size_v;  // Round up to cover partial cells
-            const u32 cells_h     = (fb->width + cell_size_h - 1) / cell_size_h;   // Round up to cover partial cells
+            const u32 cells_v     = (fd.height + cell_size_v - 1) / cell_size_v;  // Round up to cover partial cells
+            const u32 cells_h     = (fd.width + cell_size_h - 1) / cell_size_h;   // Round up to cover partial cells
             const u32 cells_total = cells_h * cells_v;
 
             const u32 row_hash_array_size  = cells_v * sizeof(hash_t);
@@ -36,7 +36,7 @@ namespace ncore
 
             state->m_cell_w     = cell_size_h;
             state->m_cell_h     = cell_size_v;
-            state->m_bpp        = bytes_per_pixel(fb->format);  // extract bytes per pixel from format
+            state->m_bpp        = bytes_per_pixel(fd.format);  // extract bytes per pixel from format
             state->m_reserved0  = 0;
             state->m_width      = cells_h;  // in cells
             state->m_height     = cells_v;  // in cells
@@ -46,21 +46,26 @@ namespace ncore
             return state;
         }
 
-        void update_framestate(framestate_t* sb, framebuffer_t* fb)
+        void release_framestate(alloc_t* allocator, framestate_t* state)
+        {
+            g_deallocate(allocator, state);
+        }
+
+        void update_framestate(framestate_t* sb, framedescr_t const& fd, const u8* pixel_data)
         {
             hash_t*   cell_hashes    = sb->m_cell_hash_array;
-            const u8* data           = (const u8*)fb->pixels;
-            const u32 span_size      = fb->width * bytes_per_pixel(fb->format);
+            const u8* data           = pixel_data;
+            const u32 span_size      = fd.width * bytes_per_pixel(fd.format);
             const u8* span           = data;
             const u32 cell_span_size = sb->m_cell_w * (sb->m_bpp / 8);
-            for (u32 y = 0; y < fb->height; y += sb->m_cell_h)
+            for (u32 y = 0; y < fd.height; y += sb->m_cell_h)
             {
                 const u8* cell = span;
                 for (u32 ss = 0; ss < span_size; ss += cell_span_size)
                 {
                     // clamp the 'cell offset' and 'cell height' to the framebuffer size
                     const u32 cw   = (ss + cell_span_size < span_size) ? cell_span_size : (span_size - ss);
-                    const u32 ch   = (y + sb->m_cell_h < fb->height) ? sb->m_cell_h : (fb->height - y);
+                    const u32 ch   = (y + sb->m_cell_h < fd.height) ? sb->m_cell_h : (fd.height - y);
                     hash_t    hash = s_compute_hash(cell, span_size, cw, ch);
                     *cell_hashes++ = hash;
                     cell += cell_span_size;

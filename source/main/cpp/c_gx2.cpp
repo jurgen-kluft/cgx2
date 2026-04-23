@@ -12,100 +12,11 @@ namespace ncore
     namespace ngx2
     {
         // ============================================================================
-        // Framebuffer
+        // Framebuffer helper functions
         // ============================================================================
+
         inline color_t* rgba8888(framebuffer_t* fb) { return static_cast<color_t*>(fb->pixels); }  // RGBA8888 pixel buffer
         inline u16*     rgb565(framebuffer_t* fb) { return static_cast<u16*>(fb->pixels); }        // RGB565 pixel buffer
-
-        // ============================================================================
-        // Blend + Draw State
-        // ============================================================================
-
-        struct draw_state_t
-        {
-            color_t       color;     // current drawing color
-            blend_state_t blend;     // current blend state
-            u32           sa;        // calculated source alpha (0..256) for blending, derived from color.a and blend.alpha
-            rect_t        scissor;   // active scissor rect
-            u8            fill;      // 0 or 1
-            f32           rotation;  // degrees
-            f32           scale_x;   // horizontal scale factor
-            f32           scale_y;   // vertical scale factor
-            sprite_t*     sprite;    // currently bound sprite (nullable)
-            font_t*       font;      // currently bound font (nullable)
-        };
-
-        // ============================================================================
-        // Context
-        // ============================================================================
-
-        struct context_t
-        {
-            sprite_context_t* sprite_ctx;      // sprite context, owned by the caller, must outlive this context
-            font_context_t*   font_ctx;        // font context, owned by the caller, must outlive this context
-            draw_state_t*     state_stack;     // stack of draw states, grows upwards
-            u32               state_top;       // index of the current top of the stack (0 when stack is empty)
-            u32               state_capacity;  // capacity of the state stack (number of draw states it can hold)
-            draw_state_t*     state;           // convenience pointer to current state
-            framebuffer_t*    framebuffer;     // active framebuffer
-        };
-
-        // ============================================================================
-        // Sprite System
-        // ============================================================================
-
-        struct sprite_t
-        {
-            u16            width;
-            u16            height;
-            u16            format;
-            u16            reserved;
-            u32            pixel_data_size;
-            u32            alpha_data_size;
-            const void*    pixel_data;
-            const void*    alpha_data;
-            const color_t* palette_data;  // always u32[256] RGBA8888 palette, used only if pixel_format is indexed
-        };
-
-        struct sprite_context_t
-        {
-            sprite_t* sprites;
-            u32       count;
-            u32       reserved;  // padding to make sizeof(sprite_context_t) a multiple of 8
-        };
-
-        // ============================================================================
-        // Font System
-        // ============================================================================
-
-        struct glyph_t
-        {
-            i16 advance_x;  // how much to move the pen horizontally to the next character after drawing this one
-            i16 bearing_x;  // horizontal distance from the pen position to the left edge of the glyph bitmap
-            i16 bearing_y;  // vertical distance from the pen position to the top edge of the glyph bitmap (can be negative)
-            u16 width;      // width of the glyph bitmap in pixels
-            u16 height;     // height of the glyph bitmap in pixels
-        };
-
-        // sizeof(font_t) must be a multiple of 8 to ensure alignment
-        struct font_t
-        {
-            glyph_t*   glyphs;    // array of glyphs, indexed by glyph index (not ASCII code)
-            const u8** bitmaps;   // alpha or coverage bitmap
-            u8         map[256];  // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
-            i16        ascent;    // distance from baseline to top of font
-            i16        descent;   // distance from baseline to bottom of font (negative value)
-            i16        line_gap;  // distance from bottom of one line to top of next line (can be negative)
-            i16        reserved;  // padding to make sizeof(font_t) a multiple of 8
-        };
-
-        // sizeof(font_context_t) must be a multiple of 8 to ensure alignment
-        struct font_context_t
-        {
-            font_t* fonts;
-            u32     count;
-            u32     reserved;
-        };
 
         // ============================================================================
         // Geometry & Utility Functions
@@ -162,7 +73,7 @@ namespace ncore
             const color_t& src = ctx->state->color;
 
             framebuffer_t* fb  = ctx->framebuffer;
-            color_t&       dst = rgba8888(fb)[x + y * (i32)fb->width];
+            color_t&       dst = rgba8888(fb)[x + y * (i32)fb->descr.width];
 
             const u32 sa = ctx->state->sa + 1;  // add 1 to convert from 0..255 to 1..256 for easier math
             if (sa == 256u)
@@ -208,7 +119,7 @@ namespace ncore
             const u32      sa  = ctx->state->sa + 1;  // keep math identical to s_put_pixel
 
             framebuffer_t* fb  = ctx->framebuffer;
-            color_t*       dst = &rgba8888(fb)[x0 + y * (i32)fb->width];
+            color_t*       dst = &rgba8888(fb)[x0 + y * (i32)fb->descr.width];
             if (sa == 256u)
             {
                 for (i32 x = x0; x <= x1; ++x, ++dst)
@@ -267,121 +178,6 @@ namespace ncore
             }
         }
 
-        // =============================================================================
-        // Framebuffer
-        // ============================================================================
-
-        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, image_format_t format)
-        {
-            framebuffer_t* fb = (framebuffer_t*)alloc->allocate(sizeof(framebuffer_t));
-            if (fb)
-            {
-                fb->width  = width;
-                fb->height = height;
-                fb->format = format;
-
-                const u32 pixel_count = (u32)width * (u32)height;
-                switch (format)
-                {
-                    case FORMAT_RGBA8888: fb->pixels = g_allocate_array<color_t>(alloc, pixel_count); break;
-                    case FORMAT_RGB565: fb->pixels = g_allocate_array<u16>(alloc, pixel_count); break;
-                    default: alloc->deallocate(fb); return nullptr;
-                }
-            }
-            return fb;
-        }
-
-        void release_framebuffer(framebuffer_t* framebuffer, alloc_t* allocator)
-        {
-            if (framebuffer)
-            {
-                g_deallocate_array(allocator, framebuffer->pixels);
-                allocator->deallocate(framebuffer);
-            }
-        }
-
-        void clear_full_framebuffer(context_t* ctx, color_t color)
-        {
-            framebuffer_t* fb = ctx->framebuffer;
-            if (fb->format == FORMAT_RGBA8888)
-            {
-                const u32 pixel_count = (u32)fb->width * (u32)fb->height;
-                color_t*  pixels      = rgba8888(fb);
-                for (u32 i = 0; i < pixel_count; ++i)
-                    pixels[i] = color;
-            }
-            else if (fb->format == FORMAT_RGB565)
-            {
-                // Convert RGBA8888 to RGB565 with simple bit-shift truncation (no dithering or error diffusion).
-                const u16 r5 = color.r >> 3;
-                const u16 g6 = color.g >> 2;
-                const u16 b5 = color.b >> 3;
-                const u16 c  = (r5 << 11) | (g6 << 5) | b5;
-
-                const u32 pixel_count = (u32)fb->width * (u32)fb->height;
-                u16*      pixels      = rgb565(fb);
-                for (u32 i = 0; i < pixel_count; ++i)
-                    pixels[i] = c;
-            }
-        }
-
-        void quantize_framebuffer(context_t* ctx, framebuffer_t* target_framebuffer)
-        {
-            // Sanity check
-            if (ctx->framebuffer == nullptr || target_framebuffer == nullptr)
-                return;
-            // Verify that source and target framebuffers have the same dimensions
-            if (ctx->framebuffer->width != target_framebuffer->width || ctx->framebuffer->height != target_framebuffer->height)
-                return;
-
-            framebuffer_t* src = ctx->framebuffer;
-            if (src->format == FORMAT_RGBA8888)
-            {
-                if (target_framebuffer->format == FORMAT_RGB565)
-                {
-                    const u32 pixel_count = (u32)src->width * (u32)src->height;
-                    color_t*  src_pixels  = rgba8888(src);
-                    u16*      dst_pixels  = rgb565(target_framebuffer);
-                    for (u32 i = 0; i < pixel_count; ++i)
-                    {
-                        const color_t& c  = src_pixels[i];
-                        const u16      r5 = c.r >> 3;
-                        const u16      g6 = c.g >> 2;
-                        const u16      b5 = c.b >> 3;
-                        dst_pixels[i]     = (r5 << 11) | (g6 << 5) | b5;
-                    }
-                }
-            }
-        }
-
-        void copy_cell_data(const framebuffer_t* fb, u16 cell_x, u16 cell_y, u8* cell_data, u16& inout_cell_width, u16& inout_cell_height, u32& inout_cell_size_in_bytes)
-        {
-            const u16 cell_w = inout_cell_width;
-            const u16 cell_h = inout_cell_height;
-
-            const u16 x0 = cell_x * cell_w;
-            const u16 y0 = cell_y * cell_h;
-
-            // clamp the cell dimensions to the framebuffer bounds
-            const u16 cw = ((x0 + cell_w) < fb->width) ? cell_w : (fb->width - x0);
-            const u16 ch = ((y0 + cell_h) < fb->height) ? cell_h : (fb->height - y0);
-
-            const u32 bytes_per_pixel   = (fb->format == FORMAT_RGBA8888) ? 4 : 2;
-            const u32 row_size_in_bytes = cw * bytes_per_pixel;
-
-            u8* dst = cell_data;
-            for (u16 y = 0; y < ch; y++)
-            {
-                const u8* src_row = (const u8*)fb->pixels + ((y0 + y) * fb->width + x0) * bytes_per_pixel;
-                g_memcpy(dst, src_row, row_size_in_bytes);
-                dst += row_size_in_bytes;
-            }
-
-            inout_cell_width         = cw;
-            inout_cell_height        = ch;
-            inout_cell_size_in_bytes = row_size_in_bytes * ch;
-        }
-
         // ============================================================================
         // Context
         // ============================================================================
@@ -402,7 +198,7 @@ namespace ncore
                 ctx->state->color    = {255, 255, 255, 255};
                 ctx->state->blend    = {255, 0};
                 ctx->state->sa       = 255;
-                ctx->state->scissor  = {0, 0, ctx->framebuffer->width, ctx->framebuffer->height};
+                ctx->state->scissor  = {0, 0, ctx->framebuffer->descr.width, ctx->framebuffer->descr.height};
                 ctx->state->fill     = 0;
                 ctx->state->rotation = 0.0f;
                 ctx->state->scale_x  = 1.0f;
@@ -424,7 +220,7 @@ namespace ncore
         {
             ctx->framebuffer            = framebuffer;
             ctx->state_top              = 1;
-            ctx->state_stack[0].scissor = {0, 0, framebuffer->width, framebuffer->height};
+            ctx->state_stack[0].scissor = {0, 0, framebuffer->descr.width, framebuffer->descr.height};
         }
 
         void end_frame(context_t* ctx) { ctx->framebuffer = nullptr; }
@@ -765,8 +561,8 @@ namespace ncore
             framebuffer_t*  fb     = ctx->framebuffer;
             const rect_t&   sc     = ctx->state->scissor;
 
-            const i32 fb_w = (i32)fb->width;
-            const i32 fb_h = (i32)fb->height;
+            const i32 fb_w = (i32)fb->descr.width;
+            const i32 fb_h = (i32)fb->descr.height;
 
             const i32 sprite_x0 = x;
             const i32 sprite_y0 = y;

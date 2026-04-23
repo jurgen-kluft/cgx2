@@ -5,6 +5,8 @@
     #pragma once
 #endif
 
+#include "cgx2/c_types.h"
+
 namespace ncore
 {
     // ============================================================================
@@ -15,78 +17,6 @@ namespace ncore
 
     namespace ngx2
     {
-        // ============================================================================
-        // Forward-Declarations (Opaque Types)
-        // ============================================================================
-
-        struct framebuffer_t;
-        struct context_t;
-        struct sprite_context_t;
-        struct font_context_t;
-        struct sprite_t;
-        struct font_t;
-
-        // ============================================================================
-        // Geometry & Utility Structs
-        // ============================================================================
-
-        struct rect_t
-        {
-            i32 x, y, w, h;
-        };
-
-        struct color_t
-        {
-            u8 r, g, b, a;
-        };
-
-        enum image_format_t
-        {
-            FORMAT_RGB565   = 0x0102,
-            FORMAT_RGB565A1 = 0x0112,
-            FORMAT_RGB565A4 = 0x0122,
-            FORMAT_RGB565A8 = 0x0132,
-            FORMAT_RGBA8888 = 0x0204,
-            FORMAT_I8       = 0x0301,
-        };
-        inline u32 bytes_per_pixel(image_format_t format) { return format & 0xF; }
-
-        // ============================================================================
-        // Framebuffer
-        // ============================================================================
-        struct framebuffer_t
-        {
-            u16            width;     // width in pixels
-            u16            height;    // height in pixels
-            image_format_t format;    // pixel format
-            u16            reserved;  // reserved for future use (0)
-            void*          pixels;    // pixel data
-        };
-
-        framebuffer_t* new_framebuffer(alloc_t* alloc, u16 width, u16 height, image_format_t format);
-        void           release_framebuffer(framebuffer_t* framebuffer, alloc_t* allocator);
-        void           clear_full_framebuffer(context_t* ctx, color_t color);
-        void           quantize_framebuffer(context_t* ctx, framebuffer_t* target_framebuffer);
-
-        // Example:
-        //  u16 cell_width = 16; cell_height = 16;
-        //  u32 cell_size_in_bytes = cell_width * cell_height * bytes_per_pixel(fb->format);
-        //  u8 cell_data[cell_size_in_bytes];
-        //  copy_cell_data(fb, cell_x, cell_y, cell_data, cell_width, cell_height, cell_size_in_bytes);
-        //  Note: cell_width, cell_height, and cell_size_in_bytes are input/output parameters. 
-        //        The function will update them to the actual size of the copied cell data (clamped to framebuffer bounds).
-        void copy_cell_data(const framebuffer_t* fb, u16 cell_x, u16 cell_y, u8* cell_data, u16& inout_cell_width, u16& inout_cell_height, u32& inout_cell_size_in_bytes);
-
-        // ============================================================================
-        // Blending
-        // ============================================================================
-
-        struct blend_state_t
-        {
-            u8 alpha;             // 0..255
-            u8 ignore_src_alpha;  // 0 or 1
-        };
-
         // ============================================================================
         // Context
         // ============================================================================
