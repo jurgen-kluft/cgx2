@@ -23,7 +23,7 @@ namespace ncore
 
         context_t* new_context(alloc_t* alloc, font_context_t* font_ctx, sprite_context_t* sprite_ctx);
         void       release_context(context_t* ctx, alloc_t* allocator);
-        void       begin_frame(context_t* ctx, framebuffer_t* framebuffer);
+        void       begin_frame(context_t* ctx, framedescr_t const& descr, void* pixels);
         void       end_frame(context_t* ctx);
 
         // --------------------------------------------------------------------------

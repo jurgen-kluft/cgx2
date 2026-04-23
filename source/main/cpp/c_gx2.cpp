@@ -15,8 +15,8 @@ namespace ncore
         // Framebuffer helper functions
         // ============================================================================
 
-        inline color_t* rgba8888(framebuffer_t* fb) { return static_cast<color_t*>(fb->pixels); }  // RGBA8888 pixel buffer
-        inline u16*     rgb565(framebuffer_t* fb) { return static_cast<u16*>(fb->pixels); }        // RGB565 pixel buffer
+        inline color_t* rgba8888(void* pixels) { return static_cast<color_t*>(pixels); }  // RGBA8888 pixel buffer
+        inline u16*     rgb565(void* pixels) { return static_cast<u16*>(pixels); }        // RGB565 pixel buffer
 
         // ============================================================================
         // Geometry & Utility Functions
@@ -72,8 +72,8 @@ namespace ncore
 
             const color_t& src = ctx->state->color;
 
-            framebuffer_t* fb  = ctx->framebuffer;
-            color_t&       dst = rgba8888(fb)[x + y * (i32)fb->descr.width];
+            void*    pixels = ctx->framebuffer_pixels;
+            color_t& dst    = rgba8888(pixels)[x + y * (i32)ctx->framebuffer_descr.width];
 
             const u32 sa = ctx->state->sa + 1;  // add 1 to convert from 0..255 to 1..256 for easier math
             if (sa == 256u)
@@ -118,8 +118,8 @@ namespace ncore
             const color_t& src = ctx->state->color;
             const u32      sa  = ctx->state->sa + 1;  // keep math identical to s_put_pixel
 
-            framebuffer_t* fb  = ctx->framebuffer;
-            color_t*       dst = &rgba8888(fb)[x0 + y * (i32)fb->descr.width];
+            void*    pixels = ctx->framebuffer_pixels;
+            color_t* dst    = &rgba8888(pixels)[x0 + y * (i32)ctx->framebuffer_descr.width];
             if (sa == 256u)
             {
                 for (i32 x = x0; x <= x1; ++x, ++dst)
@@ -187,18 +187,18 @@ namespace ncore
             context_t* ctx = (context_t*)alloc->allocate(sizeof(context_t));
             if (ctx)
             {
-                ctx->sprite_ctx  = sprite_ctx;
-                ctx->font_ctx    = font_ctx;
-                ctx->state_stack = (draw_state_t*)alloc->allocate(sizeof(draw_state_t) * 16);  // fixed capacity of 16 states for simplicity
-                ctx->state_top   = 1;
-                ctx->state       = &ctx->state_stack[0];
-                ctx->framebuffer = nullptr;
+                ctx->sprite_ctx         = sprite_ctx;
+                ctx->font_ctx           = font_ctx;
+                ctx->state_stack        = (draw_state_t*)alloc->allocate(sizeof(draw_state_t) * 16);  // fixed capacity of 16 states for simplicity
+                ctx->state_top          = 1;
+                ctx->state              = &ctx->state_stack[0];
+                ctx->framebuffer_pixels = nullptr;
 
                 // Initialize the default draw state
                 ctx->state->color    = {255, 255, 255, 255};
                 ctx->state->blend    = {255, 0};
                 ctx->state->sa       = 255;
-                ctx->state->scissor  = {0, 0, ctx->framebuffer->descr.width, ctx->framebuffer->descr.height};
+                ctx->state->scissor  = {0, 0, ctx->framebuffer_descr.width, ctx->framebuffer_descr.height};
                 ctx->state->fill     = 0;
                 ctx->state->rotation = 0.0f;
                 ctx->state->scale_x  = 1.0f;
@@ -216,14 +216,15 @@ namespace ncore
             allocator->deallocate(ctx);
         }
 
-        void begin_frame(context_t* ctx, framebuffer_t* framebuffer)
+        void begin_frame(context_t* ctx, framedescr_t const& descr, void* pixels)
         {
-            ctx->framebuffer            = framebuffer;
+            ctx->framebuffer_descr      = descr;
+            ctx->framebuffer_pixels     = pixels;
             ctx->state_top              = 1;
-            ctx->state_stack[0].scissor = {0, 0, framebuffer->descr.width, framebuffer->descr.height};
+            ctx->state_stack[0].scissor = {0, 0, descr.width, descr.height};
         }
 
-        void end_frame(context_t* ctx) { ctx->framebuffer = nullptr; }
+        void end_frame(context_t* ctx) { ctx->framebuffer_pixels = nullptr; }
 
         // --------------------------------------------------------------------------
         // State Stack
@@ -557,12 +558,12 @@ namespace ncore
             if (!ctx->state->sprite)
                 return;
 
-            const sprite_t& sprite = *ctx->state->sprite;
-            framebuffer_t*  fb     = ctx->framebuffer;
-            const rect_t&   sc     = ctx->state->scissor;
+            const sprite_t& sprite    = *ctx->state->sprite;
+            void*           fb_pixels = ctx->framebuffer_pixels;
+            const rect_t&   sc        = ctx->state->scissor;
 
-            const i32 fb_w = (i32)fb->descr.width;
-            const i32 fb_h = (i32)fb->descr.height;
+            const i32 fb_w = (i32)ctx->framebuffer_descr.width;
+            const i32 fb_h = (i32)ctx->framebuffer_descr.height;
 
             const i32 sprite_x0 = x;
             const i32 sprite_y0 = y;
@@ -601,7 +602,7 @@ namespace ncore
 
             const u32 global_alpha = (u32)ctx->state->blend.alpha + 1u;
 
-            color_t* dst_base = rgba8888(fb);
+            color_t* dst_base = rgba8888(fb_pixels);
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
             {
                 // TODO, a sprite might have a different pixel format as well as a separate alpha map

@@ -37,6 +37,14 @@ namespace ncore
             u8 r, g, b, a;
         };
 
+        inline u16 color_to_rgb565(const color_t& c)
+        {
+            const u16 r5 = c.r >> 3;
+            const u16 g6 = c.g >> 2;
+            const u16 b5 = c.b >> 3;
+            return (r5 << 11) | (g6 << 5) | b5;
+        }
+
         enum image_format_t
         {
             FORMAT_RGB565   = 0x0102,
@@ -72,13 +80,17 @@ namespace ncore
             image_format_t format;    // pixel format
         };
 
-        inline u32 bytes_per_frame(framedescr_t const& descr) { return descr.height * descr.width * bytes_per_pixel(descr.format); }
-
-        struct framebuffer_t
+        inline framedescr_t init_framedescr(u16 width, u16 height, image_format_t format)
         {
-            framedescr_t descr;   // framebuffer description (width, height, format)
-            void*        pixels;  // pixel data
-        };
+            framedescr_t descr;
+            descr.width    = width;
+            descr.height   = height;
+            descr.reserved = 0;
+            descr.format   = format;
+            return descr;
+        }
+
+        inline u32 bytes_per_frame(framedescr_t const& descr) { return descr.height * descr.width * bytes_per_pixel(descr.format); }
 
         // ============================================================================
         // Draw State
@@ -104,13 +116,14 @@ namespace ncore
 
         struct context_t
         {
-            sprite_context_t* sprite_ctx;      // sprite context, owned by the caller, must outlive this context
-            font_context_t*   font_ctx;        // font context, owned by the caller, must outlive this context
-            draw_state_t*     state_stack;     // stack of draw states, grows upwards
-            u32               state_top;       // index of the current top of the stack (0 when stack is empty)
-            u32               state_capacity;  // capacity of the state stack (number of draw states it can hold)
-            draw_state_t*     state;           // convenience pointer to current state
-            framebuffer_t*    framebuffer;     // active framebuffer
+            sprite_context_t* sprite_ctx;          // sprite context, owned by the caller, must outlive this context
+            font_context_t*   font_ctx;            // font context, owned by the caller, must outlive this context
+            draw_state_t*     state_stack;         // stack of draw states, grows upwards
+            u32               state_top;           // index of the current top of the stack (0 when stack is empty)
+            u32               state_capacity;      // capacity of the state stack (number of draw states it can hold)
+            draw_state_t*     state;               // convenience pointer to current state
+            framedescr_t      framebuffer_descr;   // description of the current framebuffer (width, height, format)
+            void*             framebuffer_pixels;  // pointer to the current framebuffer pixel data
         };
 
         // ============================================================================

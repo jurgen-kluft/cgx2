@@ -24,7 +24,7 @@ UNITTEST_SUITE_BEGIN(gx2)
             u32 width  = 64;
             u32 height = 64;
 
-            ngx2::framedescr_t framedescr = {width, height, 0, ngx2::FORMAT_RGBA8888};
+            ngx2::framedescr_t framedescr = init_framedescr(width, height, ngx2::FORMAT_RGBA8888);
             const u32 bytes_per_frame =ngx2::bytes_per_frame(framedescr);
 
             u8* prevData = g_allocate_array<u8>(Allocator, bytes_per_frame);
@@ -60,7 +60,7 @@ UNITTEST_SUITE_BEGIN(gx2)
             u32 width  = 64;
             u32 height = 64;
 
-            ngx2::framedescr_t framedescr = {width, height, 0, ngx2::FORMAT_RGBA8888};
+            ngx2::framedescr_t framedescr = init_framedescr(width, height, ngx2::FORMAT_RGBA8888);
             const u32 bytes_per_frame =ngx2::bytes_per_frame(framedescr);
 
             u8* prevData = g_allocate_array<u8>(Allocator, bytes_per_frame);
