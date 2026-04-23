@@ -1,5 +1,7 @@
 #include "ccore/c_target.h"
 #include "ccore/c_allocator.h"
+#include "ccore/c_math.h"
+#include "ccore/c_memory.h"
 
 #include "cgx2/c_gx2.h"
 
@@ -12,18 +14,8 @@ namespace ncore
         // ============================================================================
         // Framebuffer
         // ============================================================================
-
-        struct framebuffer_t
-        {
-            u16            width;   // width in pixels
-            u16            height;  // height in pixels
-            image_format_t format;  // pixel format
-            u16            reserved;
-            void*          pixels;  // pixel data
-
-            inline color_t* rgba8888() { return static_cast<color_t*>(pixels); }  // RGBA8888 pixel buffer
-            inline u16*     rgb565() { return static_cast<u16*>(pixels); }        // RGB565 pixel buffer
-        };
+        inline color_t* rgba8888(framebuffer_t* fb) { return static_cast<color_t*>(fb->pixels); }  // RGBA8888 pixel buffer
+        inline u16*     rgb565(framebuffer_t* fb) { return static_cast<u16*>(fb->pixels); }        // RGB565 pixel buffer
 
         // ============================================================================
         // Blend + Draw State
@@ -170,7 +162,7 @@ namespace ncore
             const color_t& src = ctx->state->color;
 
             framebuffer_t* fb  = ctx->framebuffer;
-            color_t&       dst = fb->rgba8888()[x + y * (i32)fb->width];
+            color_t&       dst = rgba8888(fb)[x + y * (i32)fb->width];
 
             const u32 sa = ctx->state->sa + 1;  // add 1 to convert from 0..255 to 1..256 for easier math
             if (sa == 256u)
@@ -216,7 +208,7 @@ namespace ncore
             const u32      sa  = ctx->state->sa + 1;  // keep math identical to s_put_pixel
 
             framebuffer_t* fb  = ctx->framebuffer;
-            color_t*       dst = &fb->rgba8888()[x0 + y * (i32)fb->width];
+            color_t*       dst = &rgba8888(fb)[x0 + y * (i32)fb->width];
             if (sa == 256u)
             {
                 for (i32 x = x0; x <= x1; ++x, ++dst)
@@ -314,7 +306,7 @@ namespace ncore
             if (fb->format == FORMAT_RGBA8888)
             {
                 const u32 pixel_count = (u32)fb->width * (u32)fb->height;
-                color_t*  pixels      = ctx->framebuffer->rgba8888();
+                color_t*  pixels      = rgba8888(fb);
                 for (u32 i = 0; i < pixel_count; ++i)
                     pixels[i] = color;
             }
@@ -327,7 +319,7 @@ namespace ncore
                 const u16 c  = (r5 << 11) | (g6 << 5) | b5;
 
                 const u32 pixel_count = (u32)fb->width * (u32)fb->height;
-                u16*      pixels      = ctx->framebuffer->rgb565();
+                u16*      pixels      = rgb565(fb);
                 for (u32 i = 0; i < pixel_count; ++i)
                     pixels[i] = c;
             }
@@ -348,8 +340,8 @@ namespace ncore
                 if (target_framebuffer->format == FORMAT_RGB565)
                 {
                     const u32 pixel_count = (u32)src->width * (u32)src->height;
-                    color_t*  src_pixels  = src->rgba8888();
-                    u16*      dst_pixels  = target_framebuffer->rgb565();
+                    color_t*  src_pixels  = rgba8888(src);
+                    u16*      dst_pixels  = rgb565(target_framebuffer);
                     for (u32 i = 0; i < pixel_count; ++i)
                     {
                         const color_t& c  = src_pixels[i];
@@ -360,6 +352,34 @@ namespace ncore
                     }
                 }
             }
+        }
+
+        void copy_cell_data(const framebuffer_t* fb, u16 cell_x, u16 cell_y, u8* cell_data, u16& inout_cell_width, u16& inout_cell_height, u32& inout_cell_size_in_bytes)
+        {
+            const u16 cell_w = inout_cell_width;
+            const u16 cell_h = inout_cell_height;
+
+            const u16 x0 = cell_x * cell_w;
+            const u16 y0 = cell_y * cell_h;
+
+            // clamp the cell dimensions to the framebuffer bounds
+            const u16 cw = ((x0 + cell_w) < fb->width) ? cell_w : (fb->width - x0);
+            const u16 ch = ((y0 + cell_h) < fb->height) ? cell_h : (fb->height - y0);
+
+            const u32 bytes_per_pixel   = (fb->format == FORMAT_RGBA8888) ? 4 : 2;
+            const u32 row_size_in_bytes = cw * bytes_per_pixel;
+
+            u8* dst = cell_data;
+            for (u16 y = 0; y < ch; y++)
+            {
+                const u8* src_row = (const u8*)fb->pixels + ((y0 + y) * fb->width + x0) * bytes_per_pixel;
+                g_memcpy(dst, src_row, row_size_in_bytes);
+                dst += row_size_in_bytes;
+            }
+
+            inout_cell_width         = cw;
+            inout_cell_height        = ch;
+            inout_cell_size_in_bytes = row_size_in_bytes * ch;
         }
 
         // ============================================================================
@@ -550,7 +570,7 @@ namespace ncore
         void draw_arc(context_t* ctx, i32 cx, i32 cy, i32 radius, f32 start_angle, f32 end_angle)
         {
             // Normalise so that end_angle >= start_angle.
-            const f32 two_pi = 2.0f * (f32)M_PI;
+            const f32 two_pi = 2.0f * (f32)math::PI;
             while (end_angle < start_angle)
                 end_angle += two_pi;
 
@@ -785,7 +805,7 @@ namespace ncore
 
             const u32 global_alpha = (u32)ctx->state->blend.alpha + 1u;
 
-            color_t* dst_base = fb->rgba8888();
+            color_t* dst_base = rgba8888(fb);
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
             {
                 // TODO, a sprite might have a different pixel format as well as a separate alpha map
@@ -838,8 +858,8 @@ namespace ncore
 
             for (u32 i = 0; i < ctx->count; i++)
             {
-                font_t* font = &ctx->fonts[i];
-                font->glyphs = (glyph_t*)((const u8*)binary_data + (u64)font->glyphs);
+                font_t* font  = &ctx->fonts[i];
+                font->glyphs  = (glyph_t*)((const u8*)binary_data + (u64)font->glyphs);
                 font->bitmaps = (const u8**)((const u8*)binary_data + (u64)font->bitmaps);
             }
 

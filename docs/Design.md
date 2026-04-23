@@ -104,3 +104,8 @@ if (ignore_src_alpha == 0) {
   - golang tool to convert TTF font files to our binary format font pack
     - see go-gx2/cmd/pack-font for details
   - draw_text (ctx, x, y, text)
+
+## Diff Engine
+
+A frame-buffer can be marked as a target for diffing, this means that the frame-buffer will have an accompanying state buffer. Since the diffing happens at a cell level (e.g. 16x16 pixels), the state buffer will have a size of roundup(framebuffer width / cell width) * roundup(framebuffer height / cell height) * sizeof(hash_t). Each cell in the state buffer will have a  hash value. There is a step to update the state buffer by providing the frame-buffer, the library will calculate the hash value for each cell and update the state buffer accordingly. The state buffer can then be used to compare with another state buffer to find out which cells have changed. This can be used to optimize the rendering process by only redrawing the cells that have changed.
+Additionally, the state buffer also has a hash for each row of cells, as well as a root hash.

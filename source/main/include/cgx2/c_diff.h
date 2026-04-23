@@ -9,41 +9,33 @@ namespace ncore
 {
     namespace ngx2
     {
-        struct diff_block_t
+        typedef u32 hash_t;
+
+        struct diff_state_t
         {
-            u8  ci;           // Column index of the block (0-based)
-            u8  ri;           // Row index of the block (0-based)
-            u8  cn;           // Number of contiguous blocks in the same row
-            u8  padding;      // Padding for alignment
-            u16 w;            // Clipped width of the block (can be less than DIFF_BLOCK_W for edge blocks)
-            u16 h;            // Clipped height of the block (can be less than DIFF_BLOCK_H for edge blocks)
-            u32 payload_len;  // Length of the data in bytes (w * h * DIFF_BPE)
-            u8* payload;      // Pointer to the data for this block
+            u8      m_cell_w;           // cell width in pixels
+            u8      m_cell_h;           // cell height in pixels
+            u8      m_bpp;              // bits per pixel
+            u8      m_reserved0;        // reserved for future use
+            u16     m_width;            // in cells
+            u16     m_height;           // in cells
+            hash_t  m_frame_hash;       // hash of the entire frame
+            u32     m_reserved1;        // reserved for future use
+            hash_t* m_row_hash_array;   // array of row hashes, one per row of cells
+            hash_t* m_cell_hash_array;  // array of cell hashes [row-major order, size = width * height]
         };
 
-        // Initialize a diff_block_t with the provided payload buffer and size.
-        // The payload buffer should be large enough to hold the maximum possible
-        // block data (width * DIFF_BLOCK_H * DIFF_BPE).
-        void diff_block_init(diff_block_t& block, u8* payload_buffer, i32 buffer_size);
+        struct framebuffer_t;
 
-        struct diff_engine_t
-        {
-            u16       cellCountH;      // number of cells on the horizontal axis
-            u16       cellCountV;      // number of cells on the vertical axis
-            u16       cellsPerBlockH;  // width of a block in cells (e.g. 16)
-            u16       cellsPerBlockV;  // height of a block in cells (e.g. 16)
-            u16       blockCountH;     // number of blocks in the horizontal direction (cellCountH / (cellsPerBlockH*bytesPerCell), rounded up)
-            u16       blockCountV;     // number of blocks in the vertical direction (cellCountV / cellsPerBlockV, rounded up)
-            u16       currentBlockH;   // current block on the horizontal axis being processed
-            u16       currentBlockV;   // current block on the vertical axis being processed
-            const u8* prevData;        // pointer to previous data
-            const u8* currData;        // pointer to current data
-            u16       bytesPerCell;    // bytes per cell in the framebuffer (e.g. 4 for RGBA)
-            u16       state;           // 0 = uninitialized, 2 = computing, 3 = done
-        };
+        // Create a diff_state_t for the provided frame buffer.
+        diff_state_t* create_diff_state(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v);
+        void          update_diff_state(diff_state_t* diffState, framebuffer_t* fb);
+        bool          compare_diff_state(const diff_state_t* prevState, const diff_state_t* currState);
 
-        void diff_engine_init(diff_engine_t& ctx, u16 widthInCells, u16 heightInCells, u16 cellsPerBlockH, u16 cellsPerBlockV, u8 bytesPerCell, const u8* prevData, const u8* currData);
-        bool diff_engine_compute(diff_engine_t& ctx, diff_block_t& block);
+        // Iterate through the differences between two diff states, start with cell_x = 0, cell_y = 0.
+        // The function will update cell_x and cell_y to the next different cell coordinates.
+        // Returns true if there are more differences to iterate, false when done.
+        bool iterate_diff(const diff_state_t* prevState, const diff_state_t* currState, u32& cell_x, u32& cell_y);
 
     }  // namespace ngx2
 }  // namespace ncore

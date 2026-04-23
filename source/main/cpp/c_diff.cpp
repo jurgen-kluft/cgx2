@@ -1,153 +1,121 @@
 #include "ccore/c_target.h"
+#include "ccore/c_allocator.h"
 #include "ccore/c_math.h"
 #include "ccore/c_memory.h"
 
 #include "cgx2/c_diff.h"
+#include "cgx2/c_gx2.h"
 
 namespace ncore
 {
     namespace ngx2
     {
-        static inline u32 s_min_u32(u32 a, u32 b) { return (a < b) ? a : b; }
-
-        static inline bool diff_blocks_equal(const u8* prevData, const u8* currData, u32 numCellsH, u32 numCellsV, u16 cellsPerBlockH, u16 cellsPerBlockV, u16 bytesPerCell, u16 bx, u16 by)
+        inline hash_t s_compute_hash(const u8* data, u32 stride, u32 width_in_bytes, u32 height)
         {
-            const u32 blockWidthInCells  = s_min_u32(cellsPerBlockH, numCellsH - (u32)bx * cellsPerBlockH);
-            const u32 blockHeightInCells = s_min_u32(cellsPerBlockV, numCellsV - (u32)by * cellsPerBlockV);
-            const u32 rowSizeInBytes     = blockWidthInCells * bytesPerCell;
-            const u32 src_col_off        = ((u32)bx * cellsPerBlockH) * bytesPerCell;
-            u32       src_row_off        = ((u32)by * cellsPerBlockV) * numCellsH * bytesPerCell;
-            for (u32 y = 0; y < blockHeightInCells; ++y)
+            return 0;
+        }
+
+        diff_state_t* create_diff_state(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v)
+        {
+            if (!allocator || !fb || cell_size_h == 0 || cell_size_v == 0)
+                return nullptr;
+
+            const u32 cells_v     = (fb->height + cell_size_v - 1) / cell_size_v;  // Round up to cover partial cells
+            const u32 cells_h     = (fb->width + cell_size_h - 1) / cell_size_h;   // Round up to cover partial cells
+            const u32 cells_total = cells_h * cells_v;
+
+            const u32 row_hash_array_size  = cells_v * sizeof(hash_t);
+            const u32 cell_hash_array_size = cells_total * sizeof(hash_t);
+
+            const u32 alloc_size = sizeof(diff_state_t) + row_hash_array_size + cell_hash_array_size;
+
+            diff_state_t* state      = (diff_state_t*)g_allocate_array_and_clear<u8>(allocator, alloc_size);
+            state->m_row_hash_array  = (hash_t*)(state + 1);               // array of row hashes, one per row of cells
+            state->m_cell_hash_array = state->m_row_hash_array + cells_v;  // array of cell hashes [row-major order, size = width * height]
+
+            state->m_cell_w     = cell_size_h;
+            state->m_cell_h     = cell_size_v;
+            state->m_bpp        = bytes_per_pixel(fb->format);  // extract bytes per pixel from format
+            state->m_reserved0  = 0;
+            state->m_width      = cells_h;  // in cells
+            state->m_height     = cells_v;  // in cells
+            state->m_frame_hash = 0;
+            state->m_reserved1  = 0;
+
+            return state;
+        }
+
+        void update_diff_state(diff_state_t* sb, framebuffer_t* fb)
+        {
+            hash_t*   cell_hashes    = sb->m_cell_hash_array;
+            const u8* data           = (const u8*)fb->pixels;
+            const u32 span_size      = fb->width * bytes_per_pixel(fb->format);
+            const u8* span           = data;
+            const u32 cell_span_size = sb->m_cell_w * (sb->m_bpp / 8);
+            for (u32 y = 0; y < fb->height; y += sb->m_cell_h)
             {
-                if (g_memcmp(prevData + src_row_off + src_col_off, currData + src_row_off + src_col_off, rowSizeInBytes) != 0)
-                    return false;
-                src_row_off += numCellsH * bytesPerCell;
+                const u8* cell = span;
+                for (u32 ss = 0; ss < span_size; ss += cell_span_size)
+                {
+                    // clamp the 'cell offset' and 'cell height' to the framebuffer size
+                    const u32 cw   = (ss + cell_span_size < span_size) ? cell_span_size : (span_size - ss);
+                    const u32 ch   = (y + sb->m_cell_h < fb->height) ? sb->m_cell_h : (fb->height - y);
+                    hash_t    hash = s_compute_hash(cell, span_size, cw, ch);
+                    *cell_hashes++ = hash;
+                    cell += cell_span_size;
+                }
+                span += sb->m_cell_h * span_size;
             }
-            return true;
+
+            // compute the row hashes
+            hash_t* row_hashes = sb->m_row_hash_array;
+            cell_hashes        = sb->m_cell_hash_array;
+            for (u32 row = 0; row < sb->m_height; row++)
+            {
+                *row_hashes++ = s_compute_hash((const u8*)cell_hashes, sb->m_width * sizeof(hash_t), sb->m_width * sizeof(hash_t), 1);
+                cell_hashes += sb->m_width;
+            }
+
+            // compute the frame hash
+            sb->m_frame_hash = s_compute_hash((const u8*)sb->m_row_hash_array, sb->m_height * sizeof(hash_t), sb->m_height * sizeof(hash_t), 1);
+            
         }
 
-        void diff_block_init(diff_block_t& block, u8* payload_buffer, i32 buffer_size)
+        bool compare_diff_state(const diff_state_t* prevState, const diff_state_t* currState)
         {
-            block.ci          = 0;
-            block.ri          = 0;
-            block.cn          = 0;
-            block.padding     = 0;
-            block.w           = 0;
-            block.h           = 0;
-            block.payload_len = 0;
-            block.payload     = (buffer_size > 0) ? payload_buffer : nullptr;
-        }
-
-        void diff_engine_init(diff_engine_t& ctx, u16 widthInCells, u16 heightInCells, u16 cellsPerBlockH, u16 cellsPerBlockV, u8 bytesPerCell, const u8* prevData, const u8* currData)
-        {
-            ctx.cellCountH      = widthInCells;
-            ctx.cellCountV      = heightInCells;
-            ctx.cellsPerBlockH  = cellsPerBlockH;
-            ctx.cellsPerBlockV  = cellsPerBlockV;
-            ctx.blockCountH     = (widthInCells + cellsPerBlockH - 1) / cellsPerBlockH;
-            ctx.blockCountV     = (heightInCells + cellsPerBlockV - 1) / cellsPerBlockV;
-            ctx.currentBlockH = 0;
-            ctx.currentBlockV = 0;
-            ctx.prevData       = prevData;
-            ctx.currData       = currData;
-            ctx.bytesPerCell    = bytesPerCell;
-            ctx.state           = 0;  // uninitialized
-        }
-
-        // Computes the next diff span that can occur on the current row, starting from the current column.
-        // If a span is found, fills in the block info and returns true, otherwise it will continue on to
-        // the next row until all rows have been processed, at which point it will return false and the
-        // state will be set to 3 (done).
-        bool diff_engine_compute(diff_engine_t& ctx, diff_block_t& block)
-        {
-            if (ctx.state == 3)
+            // Quick check: if the frame hashes are different, we know for sure the frames are different
+            if (prevState->m_frame_hash != currState->m_frame_hash)
                 return false;
 
-            if (ctx.state == 0)
+            // If the frame hashes are the same, we still need to check the row and cell hashes to be sure
+            for (u32 i = 0; i < prevState->m_height; i++)
             {
-                ctx.currentBlockH = 0;
-                ctx.currentBlockV = 0;
-                ctx.state           = 2;
+                if (prevState->m_row_hash_array[i] != currState->m_row_hash_array[i])
+                    return false;
             }
 
-            const u32 numCellsH = ctx.cellCountH;
-            const u32 numCellsV = ctx.cellCountV;
-
-            while (ctx.currentBlockV < ctx.blockCountV)
+            for (u32 i = 0; i < prevState->m_width * prevState->m_height; i++)
             {
-                const u16 by = ctx.currentBlockV;
-
-                // Find the first changed block on this row.
-                while (ctx.currentBlockH < ctx.blockCountH)
-                {
-                    const u16 bx = ctx.currentBlockH;
-                    if (!diff_blocks_equal(ctx.prevData, ctx.currData, numCellsH, numCellsV, ctx.cellsPerBlockH, ctx.cellsPerBlockV, ctx.bytesPerCell, bx, by))
-                        break;
-                    ++ctx.currentBlockH;
-                }
-
-                // No changed span on this row, continue with the next row.
-                if (ctx.currentBlockH >= ctx.blockCountH)
-                {
-                    ctx.currentBlockH = 0;
-                    ++ctx.currentBlockV;
-                    continue;
-                }
-
-                const u16 start_bx = ctx.currentBlockH;
-                u16       end_bx   = start_bx;
-                while (end_bx < ctx.blockCountH)
-                {
-                    if (diff_blocks_equal(ctx.prevData, ctx.currData, numCellsH, numCellsV, ctx.cellsPerBlockH, ctx.cellsPerBlockV, ctx.bytesPerCell, end_bx, by))
-                        break;
-                    ++end_bx;
-                }
-
-                const u32 maxSpanCellsW = (u32)(end_bx - start_bx) * ctx.cellsPerBlockH;
-                const u32 startCellX    = (u32)start_bx * ctx.cellsPerBlockH;
-                const u32 startCellY    = (u32)by * ctx.cellsPerBlockV;
-
-                const u32 spanCellsW  = s_min_u32(maxSpanCellsW, numCellsH - startCellX);
-                const u32 spanCellsH  = s_min_u32((u32)ctx.cellsPerBlockV, numCellsV - startCellY);
-                const u32 rowBytes    = spanCellsW * ctx.bytesPerCell;
-                const u32 payloadSize = rowBytes * spanCellsH;
-
-                block.ci          = (u8)start_bx;
-                block.ri          = (u8)by;
-                block.cn          = (u8)(end_bx - start_bx);
-                block.padding     = 0;
-                block.w           = (u16)spanCellsW;
-                block.h           = (u16)spanCellsH;
-                block.payload_len = payloadSize;
-
-                if (block.payload != nullptr && payloadSize > 0)
-                {
-                    const u32 src_col_off = startCellX * ctx.bytesPerCell;
-                    u32       src_row_off = startCellY * numCellsH * ctx.bytesPerCell;
-                    u32       dst_row_off = 0;
-                    for (u32 y = 0; y < spanCellsH; ++y)
-                    {
-                        g_memcpy(block.payload + dst_row_off, ctx.currData + src_row_off + src_col_off, rowBytes);
-                        src_row_off += numCellsH * ctx.bytesPerCell;
-                        dst_row_off += rowBytes;
-                    }
-                }
-
-                ctx.currentBlockH = end_bx;
-                return true;
+                if (prevState->m_cell_hash_array[i] != currState->m_cell_hash_array[i])
+                    return false;
             }
 
-            ctx.state           = 3;
-            block.ci            = 0;
-            block.ri            = 0;
-            block.cn            = 0;
-            block.padding       = 0;
-            block.w             = 0;
-            block.h             = 0;
-            block.payload_len   = 0;
-            ctx.currentBlockH = 0;
-            return false;
+            return true;  // All hashes match, frames are considered identical
+        }
 
+        bool iterate_diff(const diff_state_t* prevState, const diff_state_t* currState, u32& cell_x, u32& cell_y)
+        {
+            const u32 total_cells = prevState->m_width * prevState->m_height;
+            for (u32 i = cell_y * prevState->m_width + cell_x; i < total_cells; i++)
+            {
+                if (prevState->m_cell_hash_array[i] != currState->m_cell_hash_array[i])
+                {
+                    cell_y = i / prevState->m_width;
+                    cell_x = i - (cell_y * prevState->m_width);
+                    return true;
+                }
+            }
+            return false;  // No more differences
         }
 
     }  // namespace ngx2
