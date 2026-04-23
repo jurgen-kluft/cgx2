@@ -1,6 +1,4 @@
 #include "ccore/c_allocator.h"
-
-#include "cgx2/c_types.h"
 #include "cgx2/c_framestate.h"
 
 #include "cunittest/cunittest.h"

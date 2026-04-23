@@ -58,16 +58,6 @@ namespace ncore
         inline u32 bytes_per_row(image_format_t format, u32 width) { return width * bytes_per_pixel(format); }
 
         // ============================================================================
-        // Blending
-        // ============================================================================
-
-        struct blend_state_t
-        {
-            u8 alpha;             // 0..255
-            u8 ignore_src_alpha;  // 0 or 1
-        };
-
-        // ============================================================================
         // Framebuffer
         // ============================================================================
 
@@ -90,24 +80,6 @@ namespace ncore
         }
 
         inline u32 bytes_per_frame(framedescr_t const& descr) { return descr.height * descr.width * bytes_per_pixel(descr.format); }
-
-        // ============================================================================
-        // Draw State
-        // ============================================================================
-
-        struct draw_state_t
-        {
-            blend_state_t blend;     // current blend state
-            u8            sa;        // calculated source alpha (0..256) for blending, derived from color.a and blend.alpha
-            u8            fill;      // 0 or 1
-            color_t       color;     // current drawing color
-            f32           rotation;  // degrees
-            f32           scale_x;   // horizontal scale factor
-            f32           scale_y;   // vertical scale factor
-            rect_t        scissor;   // active scissor rect
-            sprite_t*     sprite;    // currently bound sprite (nullable)
-            font_t*       font;      // currently bound font (nullable)
-        };
 
     }  // namespace ngx2
 }  // namespace ncore

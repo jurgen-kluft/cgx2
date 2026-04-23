@@ -5,12 +5,12 @@
     #pragma once
 #endif
 
+#include "cgx2/c_draw_context.h"
+
 namespace ncore
 {
     namespace ngx2
     {
-        struct context_t;
-
         // ============================================================================
         // Drawing 
         // ============================================================================

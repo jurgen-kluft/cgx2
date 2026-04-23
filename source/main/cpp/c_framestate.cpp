@@ -3,8 +3,8 @@
 #include "ccore/c_math.h"
 #include "ccore/c_memory.h"
 
-#include "cgx2/c_gx2.h"
 #include "cgx2/c_framestate.h"
+#include "cgx2/c_types.h"
 
 namespace ncore
 {

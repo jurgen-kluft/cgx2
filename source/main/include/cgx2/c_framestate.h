@@ -5,6 +5,8 @@
     #pragma once
 #endif
 
+#include "cgx2/c_types.h"
+
 namespace ncore
 {
     class alloc_t;
@@ -26,6 +28,11 @@ namespace ncore
             hash_t* m_row_hash_array;   // array of row hashes, one per row of cells
             hash_t* m_cell_hash_array;  // array of cell hashes [row-major order, size = width * height]
         };
+
+        // TODO, expose helper functions to compute the necessary allocation size for framestate_t, and
+        // change 'create_framestate' into 'init_framestate' where the user provides the memory buffer 
+        // for the framestate_t and the function initializes it in-place.
+        // Note: now the user owns the memory buffer
 
         // Create a framestate_t for the provided frame buffer.
         framestate_t* create_framestate(alloc_t* allocator, framedescr_t const& fd, u8 cell_size_h, u8 cell_size_v);

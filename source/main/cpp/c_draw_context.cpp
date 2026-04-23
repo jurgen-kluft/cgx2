@@ -29,16 +29,17 @@ namespace ncore
             ctx.framebuffer_pixels = nullptr;
 
             // Initialize the default draw state
-            ctx.state->color    = {255, 255, 255, 255};
-            ctx.state->blend    = {255, 0};
-            ctx.state->sa       = 255;
-            ctx.state->scissor  = {0, 0, ctx.framebuffer_descr.width, ctx.framebuffer_descr.height};
-            ctx.state->fill     = 0;
-            ctx.state->rotation = 0.0f;
-            ctx.state->scale_x  = 1.0f;
-            ctx.state->scale_y  = 1.0f;
-            ctx.state->sprite   = get_sprite(ctx.sprite_ctx, 0);
-            ctx.state->font     = get_font(ctx.font_ctx, 0);
+            ctx.state->color            = {255, 255, 255, 255};
+            ctx.state->blend_alpha      = 255;
+            ctx.state->ignore_src_alpha = 0;
+            ctx.state->sa               = 255;
+            ctx.state->scissor          = {0, 0, ctx.framebuffer_descr.width, ctx.framebuffer_descr.height};
+            ctx.state->fill             = 0;
+            ctx.state->rotation         = 0.0f;
+            ctx.state->scale_x          = 1.0f;
+            ctx.state->scale_y          = 1.0f;
+            ctx.state->sprite           = get_sprite(ctx.sprite_ctx, 0);
+            ctx.state->font             = get_font(ctx.font_ctx, 0);
         }
 
         void begin_frame(context_t& ctx, framedescr_t const& descr, void* pixels)
@@ -85,13 +86,14 @@ namespace ncore
         void set_color(context_t& ctx, color_t color)
         {
             ctx.state->color = color;
-            ctx.state->sa    = (color.a * ctx.state->blend.alpha) >> 8;
+            ctx.state->sa    = (color.a * ctx.state->blend_alpha) >> 8;
         }
 
-        void set_blend_state(context_t& ctx, blend_state_t blend)
+        void set_blend_state(context_t& ctx, u8 blend_alpha, u8 ignore_src_alpha)
         {
-            ctx.state->blend = blend;
-            ctx.state->sa    = (ctx.state->color.a * blend.alpha) >> 8;
+            ctx.state->blend_alpha      = blend_alpha;
+            ctx.state->ignore_src_alpha = ignore_src_alpha ? 1 : 0;
+            ctx.state->sa               = (ctx.state->color.a * blend_alpha) >> 8;
         }
 
         void set_scissor_rect(context_t& ctx, rect_t rect) { ctx.state->scissor = rect; }

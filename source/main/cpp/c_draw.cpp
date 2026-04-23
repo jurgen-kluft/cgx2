@@ -4,7 +4,6 @@
 #include "ccore/c_memory.h"
 
 #include "cgx2/c_draw.h"
-#include "cgx2/c_draw_context.h"
 #include "cgx2/c_sprite.h"
 #include "cgx2/c_font.h"
 
@@ -464,7 +463,7 @@ namespace ncore
             const i32 src_y0 = draw_y0 - sprite_y0;
             const i32 span_w = draw_x1 - draw_x0;
 
-            const u32 global_alpha = (u32)ctx.state->blend.alpha + 1u;
+            const u32 global_alpha = (u32)ctx.state->blend_alpha + 1u;
 
             color_t* dst_base = rgba8888(fb_pixels);
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
