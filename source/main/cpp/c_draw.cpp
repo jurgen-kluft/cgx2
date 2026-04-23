@@ -3,7 +3,10 @@
 #include "ccore/c_math.h"
 #include "ccore/c_memory.h"
 
-#include "cgx2/c_gx2.h"
+#include "cgx2/c_draw.h"
+#include "cgx2/c_draw_context.h"
+#include "cgx2/c_sprite.h"
+#include "cgx2/c_font.h"
 
 #include <cmath>
 
@@ -63,19 +66,19 @@ namespace ncore
         // ============================================================================
 
         // Write a single pixel with scissor clipping and alpha blending.
-        static void s_put_pixel(context_t* ctx, i32 x, i32 y)
+        static void s_put_pixel(context_t& ctx, i32 x, i32 y)
         {
             // scissor is initialized to the frame-buffer bounds
-            const rect_t& sc = ctx->state->scissor;
+            const rect_t& sc = ctx.state->scissor;
             if (x < sc.x || x >= sc.x + sc.w || y < sc.y || y >= sc.y + sc.h)
                 return;
 
-            const color_t& src = ctx->state->color;
+            const color_t& src = ctx.state->color;
 
-            void*    pixels = ctx->framebuffer_pixels;
-            color_t& dst    = rgba8888(pixels)[x + y * (i32)ctx->framebuffer_descr.width];
+            void*    pixels = ctx.framebuffer_pixels;
+            color_t& dst    = rgba8888(pixels)[x + y * (i32)ctx.framebuffer_descr.width];
 
-            const u32 sa = ctx->state->sa + 1;  // add 1 to convert from 0..255 to 1..256 for easier math
+            const u32 sa = ctx.state->sa + 1;  // add 1 to convert from 0..255 to 1..256 for easier math
             if (sa == 256u)
             {
                 dst = src;
@@ -92,7 +95,7 @@ namespace ncore
         }
 
         // Horizontal pixel span (inclusive endpoints).
-        static void s_hspan(context_t* ctx, i32 x0, i32 x1, i32 y)
+        static void s_hspan(context_t& ctx, i32 x0, i32 x1, i32 y)
         {
             if (x0 > x1)
             {
@@ -101,7 +104,7 @@ namespace ncore
                 x1    = t;
             }
 
-            const rect_t& sc = ctx->state->scissor;
+            const rect_t& sc = ctx.state->scissor;
             if (y < sc.y || y >= sc.y + sc.h)
                 return;
 
@@ -115,11 +118,11 @@ namespace ncore
             if (x0 > x1)
                 return;
 
-            const color_t& src = ctx->state->color;
-            const u32      sa  = ctx->state->sa + 1;  // keep math identical to s_put_pixel
+            const color_t& src = ctx.state->color;
+            const u32      sa  = ctx.state->sa + 1;  // keep math identical to s_put_pixel
 
-            void*    pixels = ctx->framebuffer_pixels;
-            color_t* dst    = &rgba8888(pixels)[x0 + y * (i32)ctx->framebuffer_descr.width];
+            void*    pixels = ctx.framebuffer_pixels;
+            color_t* dst    = &rgba8888(pixels)[x0 + y * (i32)ctx.framebuffer_descr.width];
             if (sa == 256u)
             {
                 for (i32 x = x0; x <= x1; ++x, ++dst)
@@ -140,7 +143,7 @@ namespace ncore
         }
 
         // Vertical pixel span (inclusive endpoints).
-        static void s_vspan(context_t* ctx, i32 x0, i32 x1, i32 y)
+        static void s_vspan(context_t& ctx, i32 x0, i32 x1, i32 y)
         {
             if (x0 > x1)
             {
@@ -152,7 +155,7 @@ namespace ncore
 
         // Bresenham line from (x0,y0) to (x1,y1) via s_put_pixel; if half_thick > 0 each
         // raster point is replaced by a filled disc of that radius.
-        static void s_bresenham(context_t* ctx, i32 x0, i32 y0, i32 x1, i32 y1)
+        static void s_bresenham(context_t& ctx, i32 x0, i32 y0, i32 x1, i32 y1)
         {
             i32 dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
             i32 dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -179,119 +182,15 @@ namespace ncore
         }
 
         // ============================================================================
-        // Context
+        // Drawing 
         // ============================================================================
 
-        context_t* new_context(alloc_t* alloc, font_context_t* font_ctx, sprite_context_t* sprite_ctx)
-        {
-            context_t* ctx = (context_t*)alloc->allocate(sizeof(context_t));
-            if (ctx)
-            {
-                ctx->sprite_ctx         = sprite_ctx;
-                ctx->font_ctx           = font_ctx;
-                ctx->state_stack        = (draw_state_t*)alloc->allocate(sizeof(draw_state_t) * 16);  // fixed capacity of 16 states for simplicity
-                ctx->state_top          = 1;
-                ctx->state              = &ctx->state_stack[0];
-                ctx->framebuffer_pixels = nullptr;
+        void draw_pixel(context_t& ctx, i32 x, i32 y) { s_put_pixel(ctx, x, y); }
+        void draw_line(context_t& ctx, i32 x0, i32 y0, i32 x1, i32 y1) { s_bresenham(ctx, x0, y0, x1, y1); }
+        void draw_hline(context_t& ctx, i32 x0, i32 x1, i32 y) { s_hspan(ctx, x0, x1, y); }
+        void draw_vline(context_t& ctx, i32 x, i32 y0, i32 y1) { s_vspan(ctx, y0, y1, x); }
 
-                // Initialize the default draw state
-                ctx->state->color    = {255, 255, 255, 255};
-                ctx->state->blend    = {255, 0};
-                ctx->state->sa       = 255;
-                ctx->state->scissor  = {0, 0, ctx->framebuffer_descr.width, ctx->framebuffer_descr.height};
-                ctx->state->fill     = 0;
-                ctx->state->rotation = 0.0f;
-                ctx->state->scale_x  = 1.0f;
-                ctx->state->scale_y  = 1.0f;
-                ctx->state->sprite   = get_sprite(ctx->sprite_ctx, 0);
-                ctx->state->font     = get_font(ctx->font_ctx, 0);
-            }
-
-            return ctx;
-        }
-
-        void release_context(context_t* ctx, alloc_t* allocator)
-        {
-            allocator->deallocate(ctx->state_stack);
-            allocator->deallocate(ctx);
-        }
-
-        void begin_frame(context_t* ctx, framedescr_t const& descr, void* pixels)
-        {
-            ctx->framebuffer_descr      = descr;
-            ctx->framebuffer_pixels     = pixels;
-            ctx->state_top              = 1;
-            ctx->state_stack[0].scissor = {0, 0, descr.width, descr.height};
-        }
-
-        void end_frame(context_t* ctx) { ctx->framebuffer_pixels = nullptr; }
-
-        // --------------------------------------------------------------------------
-        // State Stack
-        // ------------------------------------------------------------------------
-
-        void push_state(context_t* ctx)
-        {
-            if (ctx->state_top < ctx->state_capacity)
-            {
-                ctx->state_stack[ctx->state_top] = *ctx->state;
-                ctx->state                       = &ctx->state_stack[ctx->state_top];
-
-                // When pushing a new state, we copy the previous state as the starting point for the new state.
-                // This way the caller can modify only the properties they want to change and leave the rest unchanged.
-                ctx->state_stack[ctx->state_top] = ctx->state_stack[ctx->state_top - 1];
-
-                ctx->state_top++;
-            }
-        }
-        void pop_state(context_t* ctx)
-        {
-            if (ctx->state_top > 0)
-            {
-                ctx->state_top--;
-                ctx->state = &ctx->state_stack[ctx->state_top - 1];
-            }
-        }
-
-        // =============================================================================
-        // State Setters
-        // ============================================================================
-
-        void set_color(context_t* ctx, color_t color)
-        {
-            ctx->state->color = color;
-            ctx->state->sa    = (color.a * ctx->state->blend.alpha) >> 8;
-        }
-
-        void set_blend_state(context_t* ctx, blend_state_t blend)
-        {
-            ctx->state->blend = blend;
-            ctx->state->sa    = (ctx->state->color.a * blend.alpha) >> 8;
-        }
-
-        void set_scissor_rect(context_t* ctx, rect_t rect) { ctx->state->scissor = rect; }
-        void set_fill(context_t* ctx, u8 enable) { ctx->state->fill = enable ? 1 : 0; }
-        void set_rotation(context_t* ctx, f32 angle) { ctx->state->rotation = angle; }
-
-        void set_scale(context_t* ctx, f32 sx, f32 sy)
-        {
-            ctx->state->scale_x = sx;
-            ctx->state->scale_y = sy;
-        }
-
-        void set_sprite(context_t* ctx, sprite_t* sprite) { ctx->state->sprite = sprite; }
-        void set_font(context_t* ctx, font_t* font) { ctx->state->font = font; }
-
-        // ============================================================================
-        // Drawing Primitives
-        // ============================================================================
-
-        void draw_pixel(context_t* ctx, i32 x, i32 y) { s_put_pixel(ctx, x, y); }
-        void draw_line(context_t* ctx, i32 x0, i32 y0, i32 x1, i32 y1) { s_bresenham(ctx, x0, y0, x1, y1); }
-        void draw_hline(context_t* ctx, i32 x0, i32 x1, i32 y) { s_hspan(ctx, x0, x1, y); }
-        void draw_vline(context_t* ctx, i32 x, i32 y0, i32 y1) { s_vspan(ctx, y0, y1, x); }
-
-        void draw_hdline(context_t* ctx, i32 x0, i32 x1, i32 y, u16 dash1, u16 dash2)
+        void draw_hdline(context_t& ctx, i32 x0, i32 x1, i32 y, u16 dash1, u16 dash2)
         {
             if (x0 > x1)
             {
@@ -310,7 +209,7 @@ namespace ncore
             }
         }
 
-        void draw_vdline(context_t* ctx, i32 x, i32 y0, i32 y1, u16 dash1, u16 dash2)
+        void draw_vdline(context_t& ctx, i32 x, i32 y0, i32 y1, u16 dash1, u16 dash2)
         {
             if (y0 > y1)
             {
@@ -331,7 +230,7 @@ namespace ncore
             }
         }
 
-        void draw_dline(context_t* ctx, i32 x0, i32 y0, i32 x1, i32 y1, u16 dash1, u16 dash2)
+        void draw_dline(context_t& ctx, i32 x0, i32 y0, i32 x1, i32 y1, u16 dash1, u16 dash2)
         {
             u16 period = dash1 + dash2;
             if (period == 0)
@@ -364,7 +263,7 @@ namespace ncore
             }
         }
 
-        void draw_arc(context_t* ctx, i32 cx, i32 cy, i32 radius, f32 start_angle, f32 end_angle)
+        void draw_arc(context_t& ctx, i32 cx, i32 cy, i32 radius, f32 start_angle, f32 end_angle)
         {
             // Normalise so that end_angle >= start_angle.
             const f32 two_pi = 2.0f * (f32)math::PI;
@@ -385,9 +284,9 @@ namespace ncore
             }
         }
 
-        void draw_circle(context_t* ctx, i32 cx, i32 cy, i32 radius)
+        void draw_circle(context_t& ctx, i32 cx, i32 cy, i32 radius)
         {
-            if (ctx->state->fill)
+            if (ctx.state->fill)
             {
                 // Scan-convert filled circle using horizontal spans.
                 for (i32 dy = -radius; dy <= radius; dy++)
@@ -422,9 +321,9 @@ namespace ncore
             }
         }
 
-        void draw_ellipse(context_t* ctx, i32 cx, i32 cy, i32 rx, i32 ry)
+        void draw_ellipse(context_t& ctx, i32 cx, i32 cy, i32 rx, i32 ry)
         {
-            if (ctx->state->fill)
+            if (ctx.state->fill)
             {
                 // Scan-convert filled ellipse using horizontal spans.
                 for (i32 dy = -ry; dy <= ry; dy++)
@@ -493,9 +392,9 @@ namespace ncore
             }
         }
 
-        void draw_rectangle(context_t* ctx, i32 x, i32 y, i32 w, i32 h)
+        void draw_rectangle(context_t& ctx, i32 x, i32 y, i32 w, i32 h)
         {
-            if (ctx->state->fill)
+            if (ctx.state->fill)
             {
                 for (i32 row = y; row < y + h; row++)
                     s_hspan(ctx, x, x + w - 1, row);
@@ -518,52 +417,17 @@ namespace ncore
             }
         }
 
-        // ============================================================================
-        // Sprite System
-        // ============================================================================
-
-        sprite_context_t* new_sprite_context(const void* binary_data, u32 binary_size)
+        void draw_sprite(context_t& ctx, i32 x, i32 y)
         {
-            // Pointers replaced by u64 offsets from start of binary.
-            // The format of the binary data:
-            //   - [u64 offset to sprite 0 pixel data from start of binary]
-            //   - [u32 sprite_count]
-            //   - sprite_t[sprite_count]
-
-            sprite_context_t* ctx = (sprite_context_t*)binary_data;
-            ctx->sprites          = (sprite_t*)((const u8*)binary_data + (u64)ctx->sprites);
-
-            for (u32 i = 0; i < ctx->count; i++)
-            {
-                sprite_t* sprite   = &ctx->sprites[i];
-                sprite->pixel_data = ((const u8*)binary_data + (u64)sprite->pixel_data);
-                if (sprite->alpha_data != 0)
-                    sprite->alpha_data = ((const u8*)binary_data + (u64)sprite->alpha_data);
-                if (sprite->palette_data != 0)
-                    sprite->palette_data = (const color_t*)((const u8*)binary_data + (u64)sprite->palette_data);
-            }
-
-            return ctx;
-        }
-
-        sprite_t* get_sprite(sprite_context_t* ctx, u32 sprite_id)
-        {
-            if (sprite_id >= ctx->count)
-                return nullptr;
-            return &ctx->sprites[sprite_id];
-        }
-
-        void draw_sprite(context_t* ctx, i32 x, i32 y)
-        {
-            if (!ctx->state->sprite)
+            if (!ctx.state->sprite)
                 return;
 
-            const sprite_t& sprite    = *ctx->state->sprite;
-            void*           fb_pixels = ctx->framebuffer_pixels;
-            const rect_t&   sc        = ctx->state->scissor;
+            const sprite_t& sprite    = *ctx.state->sprite;
+            void*           fb_pixels = ctx.framebuffer_pixels;
+            const rect_t&   sc        = ctx.state->scissor;
 
-            const i32 fb_w = (i32)ctx->framebuffer_descr.width;
-            const i32 fb_h = (i32)ctx->framebuffer_descr.height;
+            const i32 fb_w = (i32)ctx.framebuffer_descr.width;
+            const i32 fb_h = (i32)ctx.framebuffer_descr.height;
 
             const i32 sprite_x0 = x;
             const i32 sprite_y0 = y;
@@ -600,7 +464,7 @@ namespace ncore
             const i32 src_y0 = draw_y0 - sprite_y0;
             const i32 span_w = draw_x1 - draw_x0;
 
-            const u32 global_alpha = (u32)ctx->state->blend.alpha + 1u;
+            const u32 global_alpha = (u32)ctx.state->blend.alpha + 1u;
 
             color_t* dst_base = rgba8888(fb_pixels);
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
@@ -637,40 +501,7 @@ namespace ncore
             }
         }
 
-        // ============================================================================
-        // Font System
-        // ============================================================================
-
-        font_context_t* new_font_context(const void* binary_data, u32 binary_size)
-        {
-            // Pointers replaced by u64 offsets from start of binary.
-            // The format of the binary data:
-            //   - [u64 offset to font 0 glyph data from start of binary]
-            //   - [u32 font_count]
-            //   - [u32 reserved]
-            //   - font_t[font_count]
-
-            font_context_t* ctx = (font_context_t*)binary_data;
-            ctx->fonts          = (font_t*)((const u8*)binary_data + (u64)ctx->fonts);
-
-            for (u32 i = 0; i < ctx->count; i++)
-            {
-                font_t* font  = &ctx->fonts[i];
-                font->glyphs  = (glyph_t*)((const u8*)binary_data + (u64)font->glyphs);
-                font->bitmaps = (const u8**)((const u8*)binary_data + (u64)font->bitmaps);
-            }
-
-            return ctx;
-        }
-
-        font_t* get_font(font_context_t* ctx, u32 font_id)
-        {
-            if (font_id >= ctx->count)
-                return nullptr;
-            return &ctx->fonts[font_id];
-        }
-
-        void draw_text(context_t* ctx, i32 x, i32 y, const char* text)
+        void draw_text(context_t& ctx, i32 x, i32 y, const char* text)
         {
             // Drawing text is a bit more complex because of font metrics, but the basic idea is:
             // - User requests to draw text at a certain position (top left corner x,y) with the
