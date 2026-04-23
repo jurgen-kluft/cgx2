@@ -1,5 +1,5 @@
-#ifndef __CGX2_DIFF_ENGINE_H__
-#define __CGX2_DIFF_ENGINE_H__
+#ifndef __CGX2_FRAME_STATE_H__
+#define __CGX2_FRAME_STATE_H__
 #include "ccore/c_target.h"
 #ifdef USE_PRAGMA_ONCE
     #pragma once
@@ -7,11 +7,13 @@
 
 namespace ncore
 {
+    class alloc_t;
+    
     namespace ngx2
     {
-        typedef u32 hash_t;
+        typedef u64 hash_t;
 
-        struct diff_state_t
+        struct framestate_t
         {
             u8      m_cell_w;           // cell width in pixels
             u8      m_cell_h;           // cell height in pixels
@@ -27,17 +29,17 @@ namespace ncore
 
         struct framebuffer_t;
 
-        // Create a diff_state_t for the provided frame buffer.
-        diff_state_t* create_diff_state(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v);
-        void          update_diff_state(diff_state_t* diffState, framebuffer_t* fb);
-        bool          compare_diff_state(const diff_state_t* prevState, const diff_state_t* currState);
+        // Create a framestate_t for the provided frame buffer.
+        framestate_t* create_framestate(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v);
+        void          update_framestate(framestate_t* diffState, framebuffer_t* fb);
+        bool          compare_framestate(const framestate_t* prevState, const framestate_t* currState);
 
-        // Iterate through the differences between two diff states, start with cell_x = 0, cell_y = 0.
+        // Iterate through the differences between two framestates, start with cell_x = 0, cell_y = 0.
         // The function will update cell_x and cell_y to the next different cell coordinates.
         // Returns true if there are more differences to iterate, false when done.
-        bool iterate_diff(const diff_state_t* prevState, const diff_state_t* currState, u32& cell_x, u32& cell_y);
+        bool iterate_framestate(const framestate_t* prevState, const framestate_t* currState, u32& cell_x, u32& cell_y);
 
     }  // namespace ngx2
 }  // namespace ncore
 
-#endif  /// __CGX2_DIFF_ENGINE_H__
+#endif  /// __CGX2_FRAME_STATE_H__

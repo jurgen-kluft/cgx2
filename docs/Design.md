@@ -21,7 +21,8 @@
 - origin (0, 0) is at the top-left corner of the framebuffer
 - pixel coordinates are integer based (e.g. x = 10, y = 20)
 - user provides an allocate function, the library doesn't do any allocation/deallocation itself
-- all loaded images are in RGBA8888 format
+- images are provided as a spritepak (offline tool to convert image files to our binary format sprite pack)
+- fonts are provided as a fontpak (offline tool to convert TTF font files to our binary format font pack)
 
 ## Blending
 
@@ -94,7 +95,7 @@ if (ignore_src_alpha == 0) {
   - sprite context (array of sprite data, array max/size, etc..)
   - allocate_sprite_context (allocate function, array of sprite data, array max/size)
   - load sprite from custom binary file format (e.g. RGBA5551, RGBA8888, 8-Bit color palette, 1-Bit, etc..)
-  - golang tool to convert image files (e.g. PNG, BMP, etc..) to our binary format sprite pack
+  - golang tool to convert image files (e.g. PNG, TGA, JPG, BMP, etc..) to our binary format sprite pack
     - see go-gx2/cmd/pack-sprite for details
   - draw_sprite (ctx, x, y)
 - font rendering:

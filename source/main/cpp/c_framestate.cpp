@@ -3,8 +3,8 @@
 #include "ccore/c_math.h"
 #include "ccore/c_memory.h"
 
-#include "cgx2/c_diff.h"
 #include "cgx2/c_gx2.h"
+#include "cgx2/c_framestate.h"
 
 namespace ncore
 {
@@ -12,10 +12,11 @@ namespace ncore
     {
         inline hash_t s_compute_hash(const u8* data, u32 stride, u32 width_in_bytes, u32 height)
         {
+            // compute SHA1 hash of the data and return the lowest 64 bits as hash_t
             return 0;
         }
 
-        diff_state_t* create_diff_state(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v)
+        framestate_t* create_framestate(alloc_t* allocator, framebuffer_t* fb, u8 cell_size_h, u8 cell_size_v)
         {
             if (!allocator || !fb || cell_size_h == 0 || cell_size_v == 0)
                 return nullptr;
@@ -27,9 +28,9 @@ namespace ncore
             const u32 row_hash_array_size  = cells_v * sizeof(hash_t);
             const u32 cell_hash_array_size = cells_total * sizeof(hash_t);
 
-            const u32 alloc_size = sizeof(diff_state_t) + row_hash_array_size + cell_hash_array_size;
+            const u32 alloc_size = sizeof(framestate_t) + row_hash_array_size + cell_hash_array_size;
 
-            diff_state_t* state      = (diff_state_t*)g_allocate_array_and_clear<u8>(allocator, alloc_size);
+            framestate_t* state      = (framestate_t*)g_allocate_array_and_clear<u8>(allocator, alloc_size);
             state->m_row_hash_array  = (hash_t*)(state + 1);               // array of row hashes, one per row of cells
             state->m_cell_hash_array = state->m_row_hash_array + cells_v;  // array of cell hashes [row-major order, size = width * height]
 
@@ -45,7 +46,7 @@ namespace ncore
             return state;
         }
 
-        void update_diff_state(diff_state_t* sb, framebuffer_t* fb)
+        void update_framestate(framestate_t* sb, framebuffer_t* fb)
         {
             hash_t*   cell_hashes    = sb->m_cell_hash_array;
             const u8* data           = (const u8*)fb->pixels;
@@ -81,7 +82,7 @@ namespace ncore
             
         }
 
-        bool compare_diff_state(const diff_state_t* prevState, const diff_state_t* currState)
+        bool compare_framestate(const framestate_t* prevState, const framestate_t* currState)
         {
             // Quick check: if the frame hashes are different, we know for sure the frames are different
             if (prevState->m_frame_hash != currState->m_frame_hash)
@@ -103,7 +104,7 @@ namespace ncore
             return true;  // All hashes match, frames are considered identical
         }
 
-        bool iterate_diff(const diff_state_t* prevState, const diff_state_t* currState, u32& cell_x, u32& cell_y)
+        bool iterate_framestate(const framestate_t* prevState, const framestate_t* currState, u32& cell_x, u32& cell_y)
         {
             const u32 total_cells = prevState->m_width * prevState->m_height;
             for (u32 i = cell_y * prevState->m_width + cell_x; i < total_cells; i++)
