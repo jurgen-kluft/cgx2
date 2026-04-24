@@ -1,16 +1,13 @@
 # 2D Graphics Library
 
-- written in C++, but very C like
+- written in C++, very C like style
 - comments are in C++ style (//), even multiline comments use (//)
 - no std usage
 - namespace is `ngx2` (no need to prefix all functions with `ngx2_` since we are using a namespace)
 - system types are: u8, u16, u32, i8, i16, i32, f32, f64
-- internal structures are hidden from the user
 - simple API for drawing shapes, text, and sprites
 - all drawing functions must be deterministic and produce the same output given the same input
 - offline tools are written in Go
-
-## Focus
 
 ## Assumptions
 
@@ -20,9 +17,12 @@
   - quantization must be deterministic and produce the same output given the same input
 - origin (0, 0) is at the top-left corner of the framebuffer
 - pixel coordinates are integer based (e.g. x = 10, y = 20)
-- user provides an allocate function, the library doesn't do any allocation/deallocation itself
-- images are provided as a spritepak (offline tool to convert image files to our binary format sprite pack)
-- fonts are provided as a fontpak (offline tool to convert TTF font files to our binary format font pack)
+- user allocates and owns any necessary buffers
+  - library provides helper functions to calculate the required buffer sizes
+- images are provided as a spritepak 
+  - offline tool to convert image files to our binary format sprite pack
+- fonts are provided as a fontpak 
+  - offline tool to convert TTF font files to our binary format font pack
 
 ## Blending
 
@@ -51,35 +51,36 @@ if (ignore_src_alpha == 0) {
 ## Design
 
 - color (32-bit, r, g, b, a)
-- framebuffer (width, height, bpp, format)
-  - allocate_framebuffer (allocate function, width, height, bpp, format)
-  - clear_full_framebuffer (ctx, color)
-  - quantize_framebuffer (ctx, target format, target framebuffer)
+- framedescr (width, height, format) (bytes_per_pixel(format))
+- framebuffer
+  - init_framebuffer (descr, pixel data)
+  - clear_full_framebuffer (framebuffer, color)
+  - quantize_framebuffer (src framebuffer, dst framebuffer)
 - context (framebuffer, clip rect, font context, sprite context, etc..)
-  - allocate_context (allocate function, framebuffer, clip rect, font context, sprite context, etc..)
+  - init_context (framebuffer, clip rect, font context, sprite context, etc..)
   - begin_frame (ctx, framebuffer, clip rect)
-    - push state 
-      - first state:
-        - scissor=framebuffer-size
-        - color=white (255, 255, 255, 255)
-        - blend state=alpha blending enabled
-        - sa=255
-        - sprite=default
-        - font=default
-        - fill=none
-        - rotation angle=0.0
-        - scale=1.0
-      - set color
-      - set blend state
-      - set scissor rect
-      - set sprite
-      - set font
-      - set fill
-      - set rotation angle
-      - set scale
-    - pop state
+    - initialize default state for the frame:
+      - scissor=framebuffer-size
+      - color=white (255, 255, 255, 255)
+      - blend alpha, ignore src alpha
+      - sa=255
+      - sprite=default
+      - font=default
+      - fill=none
+      - rotation angle=0.0
+      - scale=1.0
   - end_frame (ctx)
-- drawing, per frame-buffer format we have the following drawing functions:
+  - push state (ctx)
+      - set color (ctx)
+      - set blend state (ctx)
+      - set scissor rect (ctx)
+      - set sprite (ctx)
+      - set font (ctx)
+      - set fill (ctx)
+      - set rotation angle (ctx)
+      - set scale (ctx)
+  - pop state (ctx)
+- drawing functions:
   - draw_pixel (ctx, x, y)
   - draw_line (ctx, x start, y start, x end, y end)
   - draw_hline (ctx, x start, x end, y)
@@ -91,22 +92,22 @@ if (ignore_src_alpha == 0) {
   - draw_circle (ctx, x, y, radius)
   - draw_ellipse (ctx, x, y, radius x, radius y)
   - draw_rectangle (ctx, x, y, width, height)
+  - draw_sprite (ctx, x, y)
+  - draw_text (ctx, x, y, text)
 - sprite rendering:
   - sprite context (array of sprite data, array max/size, etc..)
   - allocate_sprite_context (allocate function, array of sprite data, array max/size)
   - load sprite from custom binary file format (e.g. RGBA5551, RGBA8888, 8-Bit color palette, 1-Bit, etc..)
   - golang tool to convert image files (e.g. PNG, TGA, JPG, BMP, etc..) to our binary format sprite pack
     - see go-gx2/cmd/pack-sprite for details
-  - draw_sprite (ctx, x, y)
 - font rendering:
   - font context (array of font and glyph data, array max/size)
   - allocate_font_context (allocate function, array of font and glyph data, array max/size)
   - load glyph and font data from custom binary file format
   - golang tool to convert TTF font files to our binary format font pack
     - see go-gx2/cmd/pack-font for details
-  - draw_text (ctx, x, y, text)
 
-## Diff Engine
+## Frame state
 
 A frame-buffer can be marked as a target for diffing, this means that the frame-buffer will have an accompanying state buffer. Since the diffing happens at a cell level (e.g. 16x16 pixels), the state buffer will have a size of roundup(framebuffer width / cell width) * roundup(framebuffer height / cell height) * sizeof(hash_t). Each cell in the state buffer will have a  hash value. There is a step to update the state buffer by providing the frame-buffer, the library will calculate the hash value for each cell and update the state buffer accordingly. The state buffer can then be used to compare with another state buffer to find out which cells have changed. This can be used to optimize the rendering process by only redrawing the cells that have changed.
 Additionally, the state buffer also has a hash for each row of cells, as well as a root hash.
