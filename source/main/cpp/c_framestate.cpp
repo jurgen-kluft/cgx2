@@ -100,7 +100,8 @@ namespace ncore
                     return false;
             }
 
-            for (u32 i = 0; i < prevState->m_width * prevState->m_height; i++)
+            const u32 num_pixels = prevState->m_width * prevState->m_height;
+            for (u32 i = 0; i < num_pixels; i++)
             {
                 if (prevState->m_cell_hash_array[i] != currState->m_cell_hash_array[i])
                     return false;
