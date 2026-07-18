@@ -1,5 +1,7 @@
 # 2D Graphics Library
 
+Mainly targetting ESP32 and displays with 16-bit RGB565 framebuffers.
+
 - written in C++, very C like style
 - comments are in C++ style (//), even multiline comments use (//)
 - no std usage
@@ -11,103 +13,47 @@
 
 ## Assumptions
 
-- framebuffer format is fixed as RGBA8888 (32 bits per pixel, 8 bits for each channel)
-- framebuffer can be quantized to other formats (e.g. RGB565, RGBA5551, etc..)
-  - quantization is done by the library, user just needs to provide a target framebuffer with the desired format
-  - quantization must be deterministic and produce the same output given the same input
+- framebuffer format is fixed as RGB565 
 - origin (0, 0) is at the top-left corner of the framebuffer
 - pixel coordinates are integer based (e.g. x = 10, y = 20)
 - user allocates and owns any necessary buffers
   - library provides helper functions to calculate the required buffer sizes
-- images are provided as a spritepak 
+- sprites
   - offline tool to convert image files to our binary format sprite pack
-- fonts are provided as a fontpak 
+- fonts 
   - offline tool to convert TTF font files to our binary format font pack
-
-## Blending
-
-```c
-out.rgb = (src.rgb * α + dst.rgb * (255 − α)) / 255;
-out.a   = α + dst.a * (255 − α) / 255;
-
-struct blend_state_t
-{
-    u8 alpha;              // 0..255
-    u8 ignore_src_alpha;   // 0 or 1
-};
-
-// src_alpha ∈ [0,255]
-// ctx.alpha ∈ [0,255]
-// result is rounded deterministically
-
-if (ignore_src_alpha == 0) {
-    α = (src_alpha * ctx.alpha) / 255;
-} else {
-    α = ctx.alpha;
-}
-
-```
 
 ## Design
 
-- color (32-bit, r, g, b, a)
+- color (16-bit, 565)
 - framedescr (width, height, format) (bytes_per_pixel(format))
 - framebuffer
   - init_framebuffer (descr, pixel data)
   - clear_full_framebuffer (framebuffer, color)
-  - quantize_framebuffer (src framebuffer, dst framebuffer)
-- context (framebuffer, clip rect, font context, sprite context, etc..)
-  - init_context (framebuffer, clip rect, font context, sprite context, etc..)
-  - begin_frame (ctx, framebuffer, clip rect)
-    - initialize default state for the frame:
-      - scissor=framebuffer-size
-      - color=white (255, 255, 255, 255)
-      - blend alpha, ignore src alpha
-      - sa=255
-      - sprite=default
-      - font=default
-      - fill=none
-      - rotation angle=0.0
-      - scale=1.0
-  - end_frame (ctx)
-  - push state (ctx)
-      - set color (ctx)
-      - set blend state (ctx)
-      - set scissor rect (ctx)
-      - set sprite (ctx)
-      - set font (ctx)
-      - set fill (ctx)
-      - set rotation angle (ctx)
-      - set scale (ctx)
-  - pop state (ctx)
 - drawing functions:
-  - draw_pixel (ctx, x, y)
-  - draw_line (ctx, x start, y start, x end, y end)
-  - draw_hline (ctx, x start, x end, y)
-  - draw_vline (ctx, x, y start, y end)
-  - draw_hdline (ctx, x start, x end, y, dash1 length, dash2 length)
-  - draw_vdline (ctx, x, y start, y end, dash1 length, dash2 length)
-  - draw_dline (ctx, x start, y start, x end, y end, dash1 length, dash2 length)
-  - draw_arc (ctx, x, y, radius, start angle, end angle)
-  - draw_circle (ctx, x, y, radius)
-  - draw_ellipse (ctx, x, y, radius x, radius y)
-  - draw_rectangle (ctx, x, y, width, height)
-  - draw_sprite (ctx, x, y)
-  - draw_text (ctx, x, y, text)
-- sprite rendering:
-  - sprite context (array of sprite data, array max/size, etc..)
-  - allocate_sprite_context (allocate function, array of sprite data, array max/size)
-  - load sprite from custom binary file format (e.g. RGBA5551, RGBA8888, 8-Bit color palette, 1-Bit, etc..)
+  - draw_pixel (framebuffer_t& fb, rect_t& scissor, x, y, color)
+  - draw_line (framebuffer_t& fb, rect_t& scissor, x start, y start, x end, y end, color)
+  - draw_hline (framebuffer_t& fb, rect_t& scissor, x start, x end, y, color)
+  - draw_vline (framebuffer_t& fb, rect_t& scissor, x, y start, y end, color)
+  - draw_hdline (framebuffer_t& fb, rect_t& scissor, x start, x end, y, dash1 length, dash2 length, color)
+  - draw_vdline (framebuffer_t& fb, rect_t& scissor, x, y start, y end, dash1 length, dash2 length, color)
+  - draw_dline (framebuffer_t& fb, rect_t& scissor, x start, y start, x end, y end, dash1 length, dash2 length, color)
+  - draw_arc (framebuffer_t& fb, rect_t& scissor, x, y, radius, start angle, end angle, color)
+  - draw_circle (framebuffer_t& fb, rect_t& scissor, x, y, radius, fill, color)
+  - draw_ellipse (framebuffer_t& fb, rect_t& scissor, x, y, radius x, radius y, fill, color)
+  - draw_rectangle (framebuffer_t& fb, rect_t& scissor, x, y, width, height, fill, color)
+  - draw_sprite (framebuffer_t& fb, rect_t& scissor, x, y)
+  - draw_text (framebuffer_t& fb, rect_t& scissor, x, y, text)
+- sprite pack:
+  - sprite pack (array of sprite data, array max/size, etc..)
+  - allocate_sprite_pack (allocate function, array of sprite data, array max/size)
+  - load_sprite_from_custom_binary_file_format (e.g. RGBA5551, RGBA8888, 8-Bit color palette, 1-Bit, etc..)
   - golang tool to convert image files (e.g. PNG, TGA, JPG, BMP, etc..) to our binary format sprite pack
     - see go-gx2/cmd/pack-sprite for details
-- font rendering:
-  - font context (array of font and glyph data, array max/size)
-  - allocate_font_context (allocate function, array of font and glyph data, array max/size)
-  - load glyph and font data from custom binary file format
+- font pack:
+  - font pack (array of font and glyph data, array max/size)
+  - allocate_font_pack (allocate function, array of font and glyph data, array max/size)
+  - load_glyph_and_font_data_from_custom_binary_file_format
   - golang tool to convert TTF font files to our binary format font pack
     - see go-gx2/cmd/pack-font for details
 
-## Frame state
-
-A frame-buffer can be marked as a target for diffing, this means that the frame-buffer will have an accompanying state buffer. Since the diffing happens at a cell level (e.g. 16x16 pixels), the state buffer will have a size of roundup(framebuffer width / cell width) * roundup(framebuffer height / cell height) * sizeof(hash_t). Each cell in the state buffer will have a  hash value. There is a step to update the state buffer by providing the frame-buffer, the library will calculate the hash value for each cell and update the state buffer accordingly. The state buffer can then be used to compare with another state buffer to find out which cells have changed. This can be used to optimize the rendering process by only redrawing the cells that have changed.
-Additionally, the state buffer also has a hash for each row of cells, as well as a root hash.
