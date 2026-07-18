@@ -936,7 +936,7 @@ namespace ncore
             }
         }
 
-        void draw_text(framebuffer_t& ctx, rect_t const& scissor, font_t* font, i32 x, i32 y, const char* text, color_t src, float scale)
+        void draw_text(framebuffer_t& ctx, font_t* font, i32 x, i32 y, const char* text, color_t src, float scale)
         {
             if (!font || !text || scale <= 0.0f)
                 return;

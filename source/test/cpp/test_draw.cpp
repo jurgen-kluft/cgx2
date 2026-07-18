@@ -36,200 +36,186 @@ UNITTEST_SUITE_BEGIN(gx2)
                 CHECK(pixels[p + p * 8] == 0x9abc);
         }
 
-        UNITTEST_TEST(text_metrics_and_coverage)
+        UNITTEST_TEST(text_metrics_and_sdf)
         {
-            const u8  coverage[] = {0, 128, 255, 255};
-            const u32 offsets[]  = {0, 3};
+            const u8  sdf[]     = {0x18, 0xf0, 0xf0};
+            const u32 offsets[] = {0, 2};
             ngx2::glyph_t glyphs[] = {
-                {4, 1, -1, 3, 1},
-                {1, 0, 0, 1, 1},
+                {4, 1, 1, 3, 1},
+                {1, 0, 1, 1, 1},
             };
             ngx2::font_t font = {};
-            font.coverage     = coverage;
-            font.glyphs       = glyphs;
-            font.offsets      = offsets;
-            font.bpp          = 8;
-            for (i32 i = 0; i < 256; ++i)
-                font.map[i] = 0xff;
-            font.map['A'] = 0;
-            font.map['B'] = 1;
+            font.m_sdf        = sdf;
+            font.m_glyphs     = glyphs;
+            font.m_offsets    = offsets;
+            for (i32 i = 0; i < 128; ++i)
+                font.m_map[i] = 0xff;
+            font.m_map['A'] = 0;
+            font.m_map['B'] = 1;
 
-            ngx2::color_t       pixels[8 * 5] = {};
-            ngx2::framebuffer_t fb             = {ngx2::init_image_descr(8, 5, ngx2::IMAGE_FORMAT_RGB565), pixels};
-            ngx2::rect_t        scissor        = {0, 0, 8, 5};
+            ngx2::color_t       pixels[8 * 3] = {};
+            ngx2::framebuffer_t fb             = {ngx2::init_image_descr(8, 3, ngx2::IMAGE_FORMAT_RGB565), pixels};
 
-            ngx2::draw_text(fb, scissor, &font, 1, 3, "AB", 0xffff);
+            ngx2::draw_text(fb, &font, 1, 2, "AB", 0xffff, 1.0f);
 
-            CHECK(pixels[2 + 2 * 8] == 0x0000);
-            CHECK(pixels[3 + 2 * 8] == 0x8410);
-            CHECK(pixels[4 + 2 * 8] == 0xffff);
-            CHECK(pixels[5 + 3 * 8] == 0xffff);
-        }
-
-        UNITTEST_TEST(text_clipping)
-        {
-            const u8  coverage[] = {0x07, 0x07, 0x07};
-            const u32 offsets[]  = {0};
-            ngx2::glyph_t glyphs[] = {
-                {3, 0, 0, 3, 3},
-            };
-            ngx2::font_t font = {};
-            font.coverage     = coverage;
-            font.glyphs       = glyphs;
-            font.offsets      = offsets;
-            font.bpp          = 1;
-            for (i32 i = 0; i < 256; ++i)
-                font.map[i] = 0xff;
-            font.map['A'] = 0;
-
-            ngx2::color_t       pixels[4 * 4] = {};
-            ngx2::framebuffer_t fb             = {ngx2::init_image_descr(4, 4, ngx2::IMAGE_FORMAT_RGB565), pixels};
-            ngx2::rect_t        scissor        = {1, 1, 1, 1};
-
-            ngx2::draw_text(fb, scissor, &font, 0, 0, "A", 0x1234);
-
-            for (i32 y = 0; y < 4; ++y)
-            {
-                for (i32 x = 0; x < 4; ++x)
-                    CHECK(pixels[x + y * 4] == (x == 1 && y == 1 ? 0x1234 : 0));
-            }
-
-            scissor = {-2, -2, 6, 6};
-            ngx2::draw_text(fb, scissor, &font, -2, -2, "A", 0x5678);
-            CHECK(pixels[0] == 0x5678);
+            CHECK(pixels[2 + 1 * 8] == 0x0000);
+            CHECK(pixels[3 + 1 * 8] == 0x6b6d);
+            CHECK(pixels[4 + 1 * 8] == 0xdefb);
+            CHECK(pixels[5 + 1 * 8] == 0xdefb);
         }
 
         UNITTEST_TEST(text_mapping_and_advance)
         {
-            const u8  coverage[] = {0x03};
-            const u32 offsets[]  = {0, 1};
+            const u8  sdf[]     = {0xf0};
+            const u32 offsets[] = {0, 1};
             ngx2::glyph_t glyphs[] = {
                 {1, 0, 0, 1, 1},
                 {2, 0, 0, 0, 0},
             };
             ngx2::font_t font = {};
-            font.coverage     = coverage;
-            font.glyphs       = glyphs;
-            font.offsets      = offsets;
-            font.bpp          = 2;
-            for (i32 i = 0; i < 256; ++i)
-                font.map[i] = 0xff;
-            font.map['A'] = 0;
-            font.map['B'] = 1;
+            font.m_sdf        = sdf;
+            font.m_glyphs     = glyphs;
+            font.m_offsets    = offsets;
+            for (i32 i = 0; i < 128; ++i)
+                font.m_map[i] = 0xff;
+            font.m_map['A'] = 0;
+            font.m_map['B'] = 1;
 
             ngx2::color_t       pixels[6] = {};
             ngx2::framebuffer_t fb         = {ngx2::init_image_descr(6, 1, ngx2::IMAGE_FORMAT_RGB565), pixels};
-            ngx2::rect_t        scissor    = {0, 0, 6, 1};
             const char          text[]     = {(char)0x80, 'B', 'A', 0};
 
-            ngx2::draw_text(fb, scissor, &font, 1, 0, text, 0xabcd);
+            ngx2::draw_text(fb, &font, 1, 0, text, 0xffff, 1.0f);
 
             for (i32 x = 0; x < 6; ++x)
-                CHECK(pixels[x] == (x == 3 ? 0xabcd : 0));
+                CHECK(pixels[x] == (x == 3 ? 0xdefb : 0));
         }
 
-        UNITTEST_TEST(text_packed_coverage)
+        UNITTEST_TEST(text_packed_sdf)
         {
-            const u8  coverage[] = {0x1b, 0x0f, 0xf1};
-            const u32 offsets[]  = {0};
+            const u8  sdf[]     = {0x29, 0xaf};
+            const u32 offsets[] = {0};
             ngx2::glyph_t glyphs[] = {
                 {4, 0, 0, 4, 1},
             };
             ngx2::font_t font = {};
-            font.coverage     = coverage;
-            font.glyphs       = glyphs;
-            font.offsets      = offsets;
-            for (i32 i = 0; i < 256; ++i)
-                font.map[i] = 0xff;
-            font.map['A'] = 0;
+            font.m_sdf        = sdf;
+            font.m_glyphs     = glyphs;
+            font.m_offsets    = offsets;
+            for (i32 i = 0; i < 128; ++i)
+                font.m_map[i] = 0xff;
+            font.m_map['A'] = 0;
 
             ngx2::color_t       pixels[4] = {};
             ngx2::framebuffer_t fb         = {ngx2::init_image_descr(4, 1, ngx2::IMAGE_FORMAT_RGB565), pixels};
-            ngx2::rect_t        scissor    = {0, 0, 4, 1};
 
-            font.bpp = 2;
-            ngx2::draw_text(fb, scissor, &font, 0, 0, "A", 0xffff);
-            CHECK(pixels[0] == 0xffff);
+            ngx2::draw_text(fb, &font, 0, 0, "A", 0xffff, 1.0f);
+
+            CHECK(pixels[0] == 0x0861);
             CHECK(pixels[1] == 0x7bef);
-            CHECK(pixels[2] == 0x39e7);
-            CHECK(pixels[3] == 0x0000);
-
-            for (i32 i = 0; i < 4; ++i)
-                pixels[i] = 0;
-            font.coverage = coverage + 1;
-            font.bpp = 4;
-            ngx2::draw_text(fb, scissor, &font, 0, 0, "A", 0xffff);
-            CHECK(pixels[0] == 0xffff);
-            CHECK(pixels[1] == 0x0000);
-            CHECK(pixels[2] == 0x0861);
-            CHECK(pixels[3] == 0xffff);
+            CHECK(pixels[2] == 0x8c71);
+            CHECK(pixels[3] == 0xdefb);
         }
 
-        UNITTEST_TEST(text_packed_clipping_offsets)
+        UNITTEST_TEST(text_sdf_offsets)
         {
-            const u32 offsets[] = {0};
+            const u8  sdf[]     = {0xf0, 0xf0, 0x2f};
+            const u32 offsets[] = {0, 2};
             ngx2::glyph_t glyphs[] = {
-                {10, 0, 0, 10, 1},
+                {4, 0, 0, 3, 1},
+                {2, 0, 0, 2, 1},
             };
             ngx2::font_t font = {};
-            font.glyphs       = glyphs;
-            font.offsets      = offsets;
-            for (i32 i = 0; i < 256; ++i)
-                font.map[i] = 0xff;
-            font.map['A'] = 0;
+            font.m_sdf        = sdf;
+            font.m_glyphs     = glyphs;
+            font.m_offsets    = offsets;
+            for (i32 i = 0; i < 128; ++i)
+                font.m_map[i] = 0xff;
+            font.m_map['A'] = 0;
+            font.m_map['B'] = 1;
 
             ngx2::color_t       pixels[6] = {};
             ngx2::framebuffer_t fb         = {ngx2::init_image_descr(6, 1, ngx2::IMAGE_FORMAT_RGB565), pixels};
-            ngx2::rect_t        scissor    = {0, 0, 6, 1};
 
-            const u8 coverage_1[] = {0x08, 0x01};
-            font.coverage           = coverage_1;
-            font.bpp                = 1;
-            ngx2::draw_text(fb, scissor, &font, -3, 0, "A", 0xffff);
-            for (i32 i = 0; i < 6; ++i)
-                CHECK(pixels[i] == (i == 0 || i == 5 ? 0xffff : 0));
+            ngx2::draw_text(fb, &font, 0, 0, "AB", 0xffff, 1.0f);
 
-            for (i32 i = 0; i < 6; ++i)
-                pixels[i] = 0;
-            const u8 coverage_2[] = {0xc0, 0x0c, 0x00};
-            font.coverage           = coverage_2;
-            font.bpp                = 2;
-            ngx2::draw_text(fb, scissor, &font, -3, 0, "A", 0xffff);
-            CHECK(pixels[0] == 0xffff);
+            CHECK(pixels[0] == 0xdefb);
             CHECK(pixels[1] == 0x0000);
-            CHECK(pixels[2] == 0xffff);
+            CHECK(pixels[2] == 0xdefb);
+            CHECK(pixels[3] == 0x0000);
+            CHECK(pixels[4] == 0x0861);
+            CHECK(pixels[5] == 0xdefb);
+        }
 
-            for (i32 i = 0; i < 6; ++i)
-                pixels[i] = 0;
-            const u8 coverage_4[] = {0xf0, 0xf0, 0x00, 0x00, 0x00};
-            font.coverage           = coverage_4;
-            font.bpp                = 4;
-            ngx2::draw_text(fb, scissor, &font, -1, 0, "A", 0xffff);
-            CHECK(pixels[0] == 0xffff);
-            CHECK(pixels[1] == 0x0000);
-            CHECK(pixels[2] == 0xffff);
+        UNITTEST_TEST(text_scale)
+        {
+            const u8  sdf[]     = {0x2f};
+            const u32 offsets[] = {0};
+            ngx2::glyph_t glyphs[] = {
+                {2, 0, 0, 2, 1},
+            };
+            ngx2::font_t font = {};
+            font.m_sdf        = sdf;
+            font.m_glyphs     = glyphs;
+            font.m_offsets    = offsets;
+            for (i32 i = 0; i < 128; ++i)
+                font.m_map[i] = 0xff;
+            font.m_map['A'] = 0;
 
-            for (i32 i = 0; i < 6; ++i)
-                pixels[i] = 0;
-            const u8 coverage_8[] = {0, 255, 0, 255, 0, 0, 0, 0, 0, 0};
-            font.coverage           = coverage_8;
-            font.bpp                = 8;
-            ngx2::draw_text(fb, scissor, &font, -1, 0, "A", 0xffff);
-            CHECK(pixels[0] == 0xffff);
-            CHECK(pixels[1] == 0x0000);
-            CHECK(pixels[2] == 0xffff);
+            ngx2::color_t       pixels[8 * 2] = {};
+            ngx2::framebuffer_t fb             = {ngx2::init_image_descr(8, 2, ngx2::IMAGE_FORMAT_RGB565), pixels};
+
+            ngx2::draw_text(fb, &font, 0, 0, "AA", 0xffff, 2.0f);
+
+            const ngx2::color_t expected[] = {0x0861, 0x0861, 0xdefb, 0xdefb, 0x0861, 0x0861, 0xdefb, 0xdefb};
+            for (i32 y = 0; y < 2; ++y)
+            {
+                for (i32 x = 0; x < 8; ++x)
+                    CHECK(pixels[x + y * 8] == expected[x]);
+            }
+        }
+
+        UNITTEST_TEST(text_newline)
+        {
+            const u8  sdf[]     = {0xf0};
+            const u32 offsets[] = {0};
+            ngx2::glyph_t glyphs[] = {
+                {2, 0, 0, 1, 1},
+            };
+            ngx2::font_t font = {};
+            font.m_sdf        = sdf;
+            font.m_glyphs     = glyphs;
+            font.m_offsets    = offsets;
+            font.m_ascent     = 2;
+            font.m_descent    = -1;
+            font.m_line_gap   = 1;
+            for (i32 i = 0; i < 128; ++i)
+                font.m_map[i] = 0xff;
+            font.m_map['A'] = 0;
+
+            ngx2::color_t       pixels[3 * 5] = {};
+            ngx2::framebuffer_t fb             = {ngx2::init_image_descr(3, 5, ngx2::IMAGE_FORMAT_RGB565), pixels};
+
+            ngx2::draw_text(fb, &font, 1, 0, "A\nA", 0xffff, 1.0f);
+
+            for (i32 y = 0; y < 5; ++y)
+            {
+                for (i32 x = 0; x < 3; ++x)
+                    CHECK(pixels[x + y * 3] == (x == 1 && (y == 0 || y == 4) ? 0xdefb : 0));
+            }
         }
 
         UNITTEST_TEST(text_invalid_inputs)
         {
             ngx2::color_t       pixels[2] = {0x1111, 0x2222};
             ngx2::framebuffer_t fb         = {ngx2::init_image_descr(2, 1, ngx2::IMAGE_FORMAT_RGB565), pixels};
-            ngx2::rect_t        scissor    = {0, 0, 2, 1};
             ngx2::font_t        font       = {};
 
-            ngx2::draw_text(fb, scissor, nullptr, 0, 0, "A", 0xffff);
-            ngx2::draw_text(fb, scissor, &font, 0, 0, nullptr, 0xffff);
-            ngx2::draw_text(fb, scissor, &font, 0, 0, "", 0xffff);
+            ngx2::draw_text(fb, nullptr, 0, 0, "A", 0xffff, 1.0f);
+            ngx2::draw_text(fb, &font, 0, 0, nullptr, 0xffff, 1.0f);
+            ngx2::draw_text(fb, &font, 0, 0, "", 0xffff, 1.0f);
+            ngx2::draw_text(fb, &font, 0, 0, "A", 0xffff, 0.0f);
+            ngx2::draw_text(fb, &font, 0, 0, "A", 0xffff, -1.0f);
 
             CHECK(pixels[0] == 0x1111);
             CHECK(pixels[1] == 0x2222);
