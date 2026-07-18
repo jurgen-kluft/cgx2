@@ -31,7 +31,7 @@ namespace ncore
         void draw_sprite(framebuffer_t& ctx, rect_t const& scissor, sprite_t* sprite, palette_t* palette, i32 x, i32 y);
 
         // Draw a single line of byte-mapped glyphs with (x, y) as the pen baseline origin.
-        void draw_text(framebuffer_t& ctx, rect_t const& scissor, font_t* font, i32 x, i32 y, const char* text, color_t src);
+        void draw_text(framebuffer_t& ctx, rect_t const& scissor, font_t* font, i32 x, i32 y, const char* text, color_t src, float scale);
 
     }  // namespace ngx2
 }  // namespace ncore

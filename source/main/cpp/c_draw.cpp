@@ -780,7 +780,7 @@ namespace ncore
         // ============================================================================
         // CORE GLYPH RENDERER (CLIPPED BOUNDS ASSUMED BY WRAPPER)
         // ============================================================================
-        static inline void draw_glyph_sdf_internal(u16* fb, i32 fb_w, i32 out_x, i32 out_y, i32 dst_w, i32 dst_h, i32 clip_x0, i32 clip_y0, i32 clip_x1, i32 clip_y1, const u8* glyph_bitmap, u8 src_w, u16 text_color, float scale)
+        static inline void s_draw_glyph_sdf_internal(u16* fb, i32 fb_w, i32 out_x, i32 out_y, i32 dst_w, i32 dst_h, i32 clip_x0, i32 clip_y0, i32 clip_x1, i32 clip_y1, const u8* glyph_bitmap, u8 src_w, u16 text_color, float scale)
         {
             // Single hardware FPU float division outside loops
             const float step = 1.0f / scale;
@@ -834,7 +834,7 @@ namespace ncore
         // ============================================================================
         // SINGLE GLYPH DRAW CALL
         // ============================================================================
-        void draw_glyph_sdf(u16* fb, i32 fb_w, i32 fb_h, i32 pen_x, i32 pen_y, const font_t* font, u8 ascii_char, u16 text_color, float scale)
+        static void s_draw_glyph_sdf(u16* fb, i32 fb_w, i32 fb_h, i32 pen_x, i32 pen_y, const font_t* font, u8 ascii_char, u16 text_color, float scale)
         {
             // Filter non-ASCII characters out
             if (ascii_char > 127)
@@ -869,17 +869,14 @@ namespace ncore
             // Locate the exact starting byte offset of this glyph inside the monolithic SDF binary atlas
             const u8* glyph_bitmap = &font->m_sdf[font->m_offsets[glyph_idx]];
 
-            draw_glyph_sdf_internal(fb, fb_w, out_x, out_y, dst_w, dst_h, clip_x0, clip_y0, clip_x1, clip_y1, glyph_bitmap, glyph->m_width, text_color, scale);
+            s_draw_glyph_sdf_internal(fb, fb_w, out_x, out_y, dst_w, dst_h, clip_x0, clip_y0, clip_x1, clip_y1, glyph_bitmap, glyph->m_width, text_color, scale);
         }
 
         // ============================================================================
         // ENTIRE STRING/TEXT RENDERER WITH MULTI-LINE SUPPORT
         // ============================================================================
-        void draw_text_sdf(u16* fb, i32 fb_w, i32 fb_h, i32 start_x, i32 start_y, const font_t* font, const char* text, u16 text_color, float scale)
+        static void s_draw_text_sdf(u16* fb, i32 fb_w, i32 fb_h, i32 start_x, i32 start_y, const font_t* font, const char* text, u16 text_color, float scale)
         {
-            if (!text || scale <= 0.0f)
-                return;
-
             i32 pen_x = start_x;
             i32 pen_y = start_y;
 
@@ -930,13 +927,22 @@ namespace ncore
                     if (clip_x0 < clip_x1 && clip_y0 < clip_y1)
                     {
                         const u8* glyph_bitmap = &font->m_sdf[font->m_offsets[glyph_idx]];
-                        draw_glyph_sdf_internal(fb, fb_w, out_x, out_y, dst_w, dst_h, clip_x0, clip_y0, clip_x1, clip_y1, glyph_bitmap, glyph->m_width, text_color, scale);
+                        s_draw_glyph_sdf_internal(fb, fb_w, out_x, out_y, dst_w, dst_h, clip_x0, clip_y0, clip_x1, clip_y1, glyph_bitmap, glyph->m_width, text_color, scale);
                     }
                 }
 
                 // Always advance the pen layout horizontally, even for spaces or clipped elements
                 pen_x += (i32)((float)glyph->m_advance_x * scale);
             }
+        }
+
+        void draw_text(framebuffer_t& ctx, rect_t const& scissor, font_t* font, i32 x, i32 y, const char* text, color_t src, float scale)
+        {
+            if (!font || !text || scale <= 0.0f)
+                return;
+
+            u16* fb_pixels = (u16*)ctx.pixels;
+            s_draw_text_sdf(fb_pixels, (i32)ctx.descr.width, (i32)ctx.descr.height, x, y, font, text, src, scale);
         }
 
     }  // namespace ngx2
