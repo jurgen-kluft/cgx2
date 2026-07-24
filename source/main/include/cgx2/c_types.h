@@ -13,13 +13,24 @@ namespace ncore
     {
         enum image_format_t
         {
-            IMAGE_FORMAT_RGB565 = 0x0102,
-            IMAGE_FORMAT_I8     = 0x0301,
+            FMT_PIXEL_RGB565   = 0x01,  // RGB565 (16-bit) with no alpha
+            FMT_PIXEL_RGBA8888 = 0x02,  // RGBA8888 (32-bit)
+            FMT_PIXEL_I8       = 0x03,  // Indexed 8-bit (with RGBA palette)
+        };
+
+        enum alpha_format_t
+        {
+            FMT_ALPHA_A0 = 0,
+            FMT_ALPHA_A1 = 1,
+            FMT_ALPHA_A2 = 2,
+            FMT_ALPHA_A4 = 4,
+            FMT_ALPHA_A8 = 8,
         };
 
         enum palette_format_t
         {
-            PALETTE_FORMAT_RGB565 = 0x0102,
+            FMT_PALETTE_RGBA8888 = 0x01, // RGBA8888 (32-bit)
+            FMT_PALETTE_RGB565   = 0x02  // RGB565 (16-bit)
         };
 
         struct image_descr_t
@@ -38,39 +49,52 @@ namespace ncore
 
         struct sprite_t
         {
-            u16         width;      //
-            u16         height;     //
-            u16         format;     // image_format_t
-            u16         reserved;   //
-            u32         data_size;  //
-            const void* data;       //
+            u16         width;            //
+            u16         height;           //
+            u8          pixel_format;     // image_format_t
+            u8          alpha_format;     // alpha_format_t
+            u16         reserved;         //
+            u32         pixel_data_size;  //
+            const byte* pixel_data;       //
+            u32         alpha_data_size;  //
+            const byte* alpha_data;       //
         };
 
         struct palette_t
         {
-            u16         format;     // image_format_t
-            u16         data_size;  // number of colors in the palette
+            u32         format;     // image_format_t
+            u32         data_size;  // number of colors in the palette
             const byte* data;       // array of colors
         };
 
-        struct glyph_t
+        struct glyph_bearing_t
         {
-            i8 m_advance_x;  // how much to move the pen horizontally to the next character after drawing this one
-            i8 m_bearing_x;  // horizontal distance from the pen position to the left edge of the glyph bitmap
-            i8 m_bearing_y;  // vertical distance from the pen position to the top edge of the glyph bitmap (can be negative)
-            u8 m_width;      // width of the glyph bitmap in pixels
-            u8 m_height;     // height of the glyph bitmap in pixels
+            i8 m_x;  // horizontal distance from the pen position to the left edge of the glyph bitmap
+            i8 m_y;  // vertical distance from the pen position to the top edge of the glyph bitmap (can be negative)
+        };
+
+        struct glyph_dimensions_t
+        {
+            u8 m_w;  // width of the glyph bitmap in pixels
+            u8 m_h;  // height of the glyph bitmap in pixels
         };
 
         struct font_t
         {
-            const u8*  m_sdf;       // actual coverage image containing all glyphs, 4-bit
-            glyph_t*   m_glyphs;    // glyphs array, indexed as glyph[map[ASCII character]]
-            const u32* m_offsets;   // offset = (offsets[map[ASCII character]]) into the coverage data for the glyph
-            u8         m_map[128];  // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
-            i8         m_ascent;    // distance from baseline to top of font
-            i8         m_descent;   // distance from baseline to bottom of font (negative value)
-            i8         m_line_gap;  // distance from bottom of one line to top of next line (can be negative)
+            u32                 m_sdf_size;                // number of bytes in the SDF for all glyphs
+            const u8*           m_sdf;                     // actual SDF for all glyphs, 4-bit
+            u32                 m_glyphs_advance_x_size;   //
+            i8*                 m_glyphs_advance_x;        // horizontal distance from the pen position to the next character's pen position, indexed as glyph[map[ASCII character]]
+            u32                 m_glyphs_bearing_size;     //
+            glyph_bearing_t*    m_glyphs_bearing;          // glyphs array, indexed as glyph[map[ASCII character]]
+            u32                 m_glyphs_dimensions_size;  //
+            glyph_dimensions_t* m_glyphs_dimensions;       // glyphs array, indexed as glyph[map[ASCII character]]
+            u32                 m_offsets_size;            //
+            u32*                m_offsets;                 // offset = (offsets[map[ASCII character]]) into the coverage data for the glyph
+            u8                  m_map[128 - 3];            // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
+            i8                  m_ascent;                  // distance from baseline to top of font
+            i8                  m_descent;                 // distance from baseline to bottom of font (negative value)
+            i8                  m_line_gap;                // distance from bottom of one line to top of next line (can be negative)
         };
 
         struct rect_t
