@@ -52,12 +52,12 @@ namespace ncore
             u16         width;            //
             u16         height;           //
             u8          pixel_format;     // image_format_t
-            u8          alpha_format;     // alpha_format_t
+            u8          alpha_format;     // alpha_format_t; packed samples are stored most-significant bits first
             u16         reserved;         //
             u32         pixel_data_size;  //
             const byte* pixel_data;       //
             u32         alpha_data_size;  //
-            const byte* alpha_data;       //
+            const byte* alpha_data;       // packed alpha map; each row starts on a byte boundary
         };
 
         struct palette_t

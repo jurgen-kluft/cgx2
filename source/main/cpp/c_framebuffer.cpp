@@ -25,7 +25,7 @@ namespace ncore
 
         void clear_full_framebuffer(framebuffer_t& fb, color_t color)
         {
-            if (fb.descr.format == IMAGE_FORMAT_RGB565)
+            if (fb.descr.format == FMT_PIXEL_RGB565)
             {
                 // Convert RGBA8888 to RGB565 with simple bit-shift truncation (no dithering or error diffusion).
                 const u16 c = color;
