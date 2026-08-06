@@ -101,15 +101,15 @@ namespace ncore
             // 1. Separate all 3 background channels
             u32       bc    = (bg >> 11) & 0x1F;
             u32       fc    = (fg >> 11) & 0x1F;
-            const u32 out_r = bc + (((int32_t)(fc - bc) * coverage) >> 2);
+            const u32 out_r = bc + (((i32)(fc - bc) * coverage) >> 2);
 
             bc              = (bg >> 5) & 0x3F;
             fc              = (fg >> 5) & 0x3F;
-            const u32 out_g = bc + (((int32_t)(fc - bc) * coverage) >> 2);
+            const u32 out_g = bc + (((i32)(fc - bc) * coverage) >> 2);
 
             bc              = bg & 0x1F;
             fc              = fg & 0x1F;
-            const u32 out_b = bc + (((int32_t)(fc - bc) * coverage) >> 2);
+            const u32 out_b = bc + (((i32)(fc - bc) * coverage) >> 2);
 
             // 4. Repack channels back into a single u16 RGB565 pixel
             return (out_r << 11) | (out_g << 5) | out_b;
@@ -127,16 +127,16 @@ namespace ncore
             // 1. Separate all 3 background channels
             u32       bc    = (bg >> 11) & 0x1F;
             u32       fc    = (fg >> 11) & 0x1F;
-            const u32 out_r = bc + (((int32_t)(fc - bc) * coverage) >> 4);
+            const u32 out_r = bc + (((i32)(fc - bc) * coverage) >> 4);
 
             bc              = (bg >> 5) & 0x3F;
             fc              = (fg >> 5) & 0x3F;
-            const u32 out_g = bc + (((int32_t)(fc - bc) * coverage) >> 4);
+            const u32 out_g = bc + (((i32)(fc - bc) * coverage) >> 4);
 
             // 2. Separate all 3 foreground channels
             bc              = bg & 0x1F;
             fc              = fg & 0x1F;
-            const u32 out_b = bc + (((int32_t)(fc - bc) * coverage) >> 4);
+            const u32 out_b = bc + (((i32)(fc - bc) * coverage) >> 4);
 
             // 4. Repack channels back into a single u16 RGB565 pixel
             return (out_r << 11) | (out_g << 5) | out_b;
@@ -144,28 +144,37 @@ namespace ncore
 
         // Slow RGB565 Alpha Blending using bitwise manipulation
         // Alpha is 8-bit (0-255), where 0 is fully transparent and 255 is fully opaque.
-        static inline color_t s_blend_rgb565_a8(color_t dst, color_t src, u8 coverage)
+        static inline color_t s_blend_rgb565_a8(color_t dst, color_t src, u32 coverage)
         {
-            if (coverage == 0)
-                return dst;
-            if (coverage == 255)
-                return src;
+            // if (coverage == 0)
+            //     return dst;
+            // if (coverage >= 255)
+            //     return src;
 
-            const u32 inverse = 255 - coverage;
+            u32 alpha   = coverage + (coverage >> 7);
+            u32 inverse = 256 - alpha;
 
-            const u32 dst_r = (dst >> 11) & 0x1f;
-            const u32 src_r = (src >> 11) & 0x1f;
-            const u32 out_r = (src_r * coverage + dst_r * inverse + 127) / 255;
+            // --- Red Channel Blend (Native Positions) ---
+            // Keep Red sitting at bits 11-15. Mask: 0xF800 (1111100000000000)
+            u32 dst_r = dst & 0xF800;
+            u32 src_r = src & 0xF800;
+            // Shift right by 8 instead of multiplying and shifting back up
+            u32 out_r = ((src_r * alpha + dst_r * inverse) >> 8) & 0xF800;
 
-            const u32 dst_g = (dst >> 5) & 0x3f;
-            const u32 src_g = (src >> 5) & 0x3f;
-            const u32 out_g = (src_g * coverage + dst_g * inverse + 127) / 255;
+            // --- Green Channel Blend (Native Positions) ---
+            // Keep Green sitting at bits 5-10. Mask: 0x07E0 (0000011111100000)
+            u32 dst_g = dst & 0x07E0;
+            u32 src_g = src & 0x07E0;
+            u32 out_g = ((src_g * alpha + dst_g * inverse) >> 8) & 0x07E0;
 
-            const u32 dst_b = dst & 0x1f;
-            const u32 src_b = src & 0x1f;
-            const u32 out_b = (src_b * coverage + dst_b * inverse + 127) / 255;
+            // --- Blue Channel Blend (Native Positions) ---
+            // Keep Blue sitting at bits 0-4. Mask: 0x001F (0000000000011111)
+            u32 dst_b = dst & 0x001F;
+            u32 src_b = src & 0x001F;
+            u32 out_b = (src_b * alpha + dst_b * inverse) >> 8;  // No mask needed here
 
-            return (color_t)((out_r << 11) | (out_g << 5) | out_b);
+            // Reconstruct the final color by just ORing the pre-shifted registers together
+            return (color_t)(out_r | out_g | out_b);
         }
 
         // Bresenham line from (x0,y0) to (x1,y1) via s_put_pixel; if half_thick > 0 each
@@ -710,96 +719,96 @@ namespace ncore
                 switch (sprite->alpha_format)
                 {
                     case FMT_ALPHA_A1:
-                    {
-                        const i32 alpha_row_stride = ((i32)sprite->width + 7) >> 3;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32  src_y = src_y0 + j;
-                            const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 3)];
-                            i32        shift = 7 - (src_x0 & 7);
-                            u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                            const i32 alpha_row_stride = ((i32)sprite->width + 7) >> 3;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                if (((*alpha >> shift) & 1) != 0)
-                                    *dst = *src;
-                                if (shift == 0)
+                                const i32  src_y = src_y0 + j;
+                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 3)];
+                                i32        shift = 7 - (src_x0 & 7);
+                                u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                                 {
-                                    ++alpha;
-                                    shift = 7;
-                                }
-                                else
-                                {
-                                    --shift;
+                                    if (((*alpha >> shift) & 1) != 0)
+                                        *dst = *src;
+                                    if (shift == 0)
+                                    {
+                                        ++alpha;
+                                        shift = 7;
+                                    }
+                                    else
+                                    {
+                                        --shift;
+                                    }
                                 }
                             }
+                            return;
                         }
-                        return;
-                    }
                     case FMT_ALPHA_A2:
-                    {
-                        const i32 alpha_row_stride = ((i32)sprite->width * 2 + 7) >> 3;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32  src_y = src_y0 + j;
-                            const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 2)];
-                            i32        shift = 6 - ((src_x0 & 3) << 1);
-                            u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                            const i32 alpha_row_stride = ((i32)sprite->width * 2 + 7) >> 3;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                const u8 coverage = (u8)((*alpha >> shift) & 3);
-                                *dst              = s_blend_rgb565_a2(*dst, *src, coverage);
-                                if (shift == 0)
+                                const i32  src_y = src_y0 + j;
+                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 2)];
+                                i32        shift = 6 - ((src_x0 & 3) << 1);
+                                u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                                 {
-                                    ++alpha;
-                                    shift = 6;
-                                }
-                                else
-                                {
-                                    shift -= 2;
+                                    const u8 coverage = (u8)((*alpha >> shift) & 3);
+                                    *dst              = s_blend_rgb565_a2(*dst, *src, coverage);
+                                    if (shift == 0)
+                                    {
+                                        ++alpha;
+                                        shift = 6;
+                                    }
+                                    else
+                                    {
+                                        shift -= 2;
+                                    }
                                 }
                             }
+                            return;
                         }
-                        return;
-                    }
                     case FMT_ALPHA_A4:
-                    {
-                        const i32 alpha_row_stride = ((i32)sprite->width * 4 + 7) >> 3;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32  src_y = src_y0 + j;
-                            const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 1)];
-                            bool       high  = (src_x0 & 1) == 0;
-                            u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                            const i32 alpha_row_stride = ((i32)sprite->width * 4 + 7) >> 3;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                const u8 coverage = high ? (u8)(*alpha >> 4) : (u8)(*alpha & 0x0f);
-                                *dst              = s_blend_rgb565_a4(*dst, *src, coverage);
-                                if (!high)
-                                    ++alpha;
-                                high = !high;
+                                const i32  src_y = src_y0 + j;
+                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 1)];
+                                bool       high  = (src_x0 & 1) == 0;
+                                u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                                {
+                                    const u8 coverage = high ? (u8)(*alpha >> 4) : (u8)(*alpha & 0x0f);
+                                    *dst              = s_blend_rgb565_a4(*dst, *src, coverage);
+                                    if (!high)
+                                        ++alpha;
+                                    high = !high;
+                                }
                             }
+                            return;
                         }
-                        return;
-                    }
                     case FMT_ALPHA_A8:
-                    {
-                        const i32 alpha_row_stride = (i32)sprite->width;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32  src_y = src_y0 + j;
-                            const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + src_x0];
-                            u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++alpha, ++dst)
+                            const i32 alpha_row_stride = (i32)sprite->width;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                *dst = s_blend_rgb565_a8(*dst, *src, *alpha);
+                                const i32  src_y = src_y0 + j;
+                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + src_x0];
+                                u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++alpha, ++dst)
+                                {
+                                    *dst = s_blend_rgb565_a8(*dst, *src, *alpha);
+                                }
                             }
+                            return;
                         }
-                        return;
-                    }
                     default: break;
                 }
             }
@@ -869,99 +878,99 @@ namespace ncore
                 switch (sprite->alpha_format)
                 {
                     case FMT_ALPHA_A1:
-                    {
-                        const i32 alpha_row_stride = ((i32)sprite->width + 7) >> 3;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32 src_y = src_y0 + j;
-                            const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 3)];
-                            i32       shift = 7 - (src_x0 & 7);
-                            u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                            const i32 alpha_row_stride = ((i32)sprite->width + 7) >> 3;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                if (((*alpha >> shift) & 1) != 0)
-                                    *dst = color_palette[*src];
-                                if (shift == 0)
+                                const i32 src_y = src_y0 + j;
+                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 3)];
+                                i32       shift = 7 - (src_x0 & 7);
+                                u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                                 {
-                                    ++alpha;
-                                    shift = 7;
-                                }
-                                else
-                                {
-                                    --shift;
+                                    if (((*alpha >> shift) & 1) != 0)
+                                        *dst = color_palette[*src];
+                                    if (shift == 0)
+                                    {
+                                        ++alpha;
+                                        shift = 7;
+                                    }
+                                    else
+                                    {
+                                        --shift;
+                                    }
                                 }
                             }
+                            return;
                         }
-                        return;
-                    }
                     case FMT_ALPHA_A2:
-                    {
-                        const i32 alpha_row_stride = ((i32)sprite->width * 2 + 7) >> 3;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32 src_y = src_y0 + j;
-                            const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 2)];
-                            i32       shift = 6 - ((src_x0 & 3) << 1);
-                            u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                            const i32 alpha_row_stride = ((i32)sprite->width * 2 + 7) >> 3;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                const u8  coverage = (u8)((*alpha >> shift) & 3);
-                                const u16 color    = color_palette[*src];
-                                *dst               = s_blend_rgb565_a2(*dst, color, coverage);
-                                if (shift == 0)
+                                const i32 src_y = src_y0 + j;
+                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 2)];
+                                i32       shift = 6 - ((src_x0 & 3) << 1);
+                                u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                                 {
-                                    ++alpha;
-                                    shift = 6;
-                                }
-                                else
-                                {
-                                    shift -= 2;
+                                    const u8  coverage = (u8)((*alpha >> shift) & 3);
+                                    const u16 color    = color_palette[*src];
+                                    *dst               = s_blend_rgb565_a2(*dst, color, coverage);
+                                    if (shift == 0)
+                                    {
+                                        ++alpha;
+                                        shift = 6;
+                                    }
+                                    else
+                                    {
+                                        shift -= 2;
+                                    }
                                 }
                             }
+                            return;
                         }
-                        return;
-                    }
                     case FMT_ALPHA_A4:
-                    {
-                        const i32 alpha_row_stride = ((i32)sprite->width * 4 + 7) >> 3;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32 src_y = src_y0 + j;
-                            const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 1)];
-                            bool      high  = (src_x0 & 1) == 0;
-                            u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                            const i32 alpha_row_stride = ((i32)sprite->width * 4 + 7) >> 3;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                const u8  coverage = high ? (u8)(*alpha >> 4) : (u8)(*alpha & 0x0f);
-                                const u16 color    = color_palette[*src];
-                                *dst               = s_blend_rgb565_a4(*dst, color, coverage);
-                                if (!high)
-                                    ++alpha;
-                                high = !high;
+                                const i32 src_y = src_y0 + j;
+                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 1)];
+                                bool      high  = (src_x0 & 1) == 0;
+                                u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
+                                {
+                                    const u8  coverage = high ? (u8)(*alpha >> 4) : (u8)(*alpha & 0x0f);
+                                    const u16 color    = color_palette[*src];
+                                    *dst               = s_blend_rgb565_a4(*dst, color, coverage);
+                                    if (!high)
+                                        ++alpha;
+                                    high = !high;
+                                }
                             }
+                            return;
                         }
-                        return;
-                    }
                     case FMT_ALPHA_A8:
-                    {
-                        const i32 alpha_row_stride = (i32)sprite->width;
-                        for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                         {
-                            const i32 src_y = src_y0 + j;
-                            const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                            const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + src_x0];
-                            u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
-                            for (i32 i = 0; i < span_w; ++i, ++src, ++alpha, ++dst)
+                            const i32 alpha_row_stride = (i32)sprite->width;
+                            for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
-                                const u16 color = color_palette[*src];
-                                *dst            = s_blend_rgb565_a8(*dst, color, *alpha);
+                                const i32 src_y = src_y0 + j;
+                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + src_x0];
+                                u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
+                                for (i32 i = 0; i < span_w; ++i, ++src, ++alpha, ++dst)
+                                {
+                                    const u16 color = color_palette[*src];
+                                    *dst            = s_blend_rgb565_a8(*dst, color, *alpha);
+                                }
                             }
+                            return;
                         }
-                        return;
-                    }
                     default: break;
                 }
             }
@@ -988,7 +997,7 @@ namespace ncore
 
             // Map starting fractional tracking offsets based on top-left clipping constraints
             const f32 initial_y_offset = (f32)(clip_y0 - out_y);
-            f32 y_src                  = initial_y_offset * step;
+            f32       y_src            = initial_y_offset * step;
 
             // Linear pointer mapping down the hardware framebuffer
             u16* fb_line = &fb[clip_y0 * fb_w];
@@ -998,7 +1007,7 @@ namespace ncore
                 i32 row_index = ((i32)y_src) * (i32)src_w;
 
                 const f32 initial_x_offset = (f32)(clip_x0 - out_x);
-                f32 x_src                  = initial_x_offset * step;
+                f32       x_src            = initial_x_offset * step;
 
                 for (i32 dx = clip_x0; dx < clip_x1; ++dx)
                 {
@@ -1146,6 +1155,186 @@ namespace ncore
 
             u16* fb_pixels = (u16*)ctx.pixels;
             s_draw_text_sdf(fb_pixels, (i32)ctx.descr.width, (i32)ctx.descr.height, x, y, font, text, src, scale);
+        }
+
+        // ============================================================================
+        // CORE GLYPH RENDERER V2.0
+        // ============================================================================
+
+        // clang-format off
+        // 16.16 Fixed-Point Configuration
+        #define FP_FRAC_BITS 16
+        #define FP_ONE       (1 << FP_FRAC_BITS)
+        #define FP_MASK      (FP_ONE - 1)
+        
+        #define TO_FP(f) ((i32)((f) * FP_ONE))
+        // clang-format on
+
+        static u32 s_glyph_sram[32 * 8];
+
+        struct font_context_t
+        {
+            i32 inv_scale_fp;  // Fixed-point inverse scale factor for interpolation
+            i32 min_edge;      // Minimum edge threshold for SDF rendering
+            i32 max_edge;      // Maximum edge threshold for SDF rendering
+            i32 shift_bits;    // Bit shift amount for normalizing SDF values
+        };
+
+        static inline font_context_t s_prepare_font_context(f32 scale)
+        {
+            font_context_t ctx;
+            ctx.inv_scale_fp = TO_FP(1.0f / scale);
+
+            // Map the desired 5-pixel smoothing window into our 256-scaled precision
+            f32 target_width = 5.0f / scale;
+            i32 width_units  = (i32)(target_width * 256.0f);
+
+            // Floor boundary at 1 pixel span (256 internal units)
+            if (width_units < 256)
+                width_units = 256;
+
+            // --- Blazing Fast Hardware Power-of-Two Mapping ---
+            // Finds the next highest power of two instantly
+            u32 shift = 32 - __builtin_clz(width_units - 1);
+
+            i32 final_width_units = (1 << shift);
+
+            // Convert back to standard 0-255 SDF space
+            i32 sdf_span = final_width_units >> 8;
+            if (sdf_span < 2)
+                sdf_span = 2;  // Guard minimum thickness
+
+            // Center the range nicely around the 128 edge midpoint
+            ctx.min_edge = 128 - (sdf_span >> 1);
+            ctx.max_edge = ctx.min_edge + sdf_span;
+
+            // The shift bits needed to normalize our custom span back down
+            ctx.shift_bits = shift - 8;
+
+            return ctx;
+        }
+
+        static void s_prepare_glyph_and_inject_border_fast(u8 glyph_w, u8 glyph_h, const u8* glyph_data)
+        {
+            const u8* src = glyph_data;
+
+            u8*       sram_ptr = (u8*)s_glyph_sram + 32;
+            const u8* sram_end = sram_ptr + ((i32)glyph_h << 5);
+
+            const i32 width_in_words = (((i32)glyph_w + 2) + 3) >> 2;
+
+            // 1. Clear the TOP 1-pixel safety border row (32-bit word stores)
+            // Static memory should already be zeroed, so no need to clear the top row explicitly.
+
+            // 2. Stream the tight active data rows using incrementing pointers
+            while (sram_ptr < sram_end)
+            {
+                u8* dst = sram_ptr;  // Fast shift to next row head
+
+                // Write LEFT border pixel and advance pointer
+                *dst++ = 0;
+
+                // Copy raw tight visual data via sequential pointer reads/writes
+                const u8* const end = dst + glyph_w;
+                while (dst < end)
+                    *dst++ = *src++;
+                // Write RIGHT border pixel at the final position
+                *dst = 0;
+
+                sram_ptr += 32;  // Move to the next row head
+            }
+
+            // 3. Clear the BOTTOM 1-pixel safety border row
+            u32* bot_row32 = (u32*)sram_ptr;
+            for (i32 i = 0; i < width_in_words; i++)
+            {
+                *bot_row32++ = 0;
+            }
+        }
+
+        /**
+         * Renders the prepared SRAM glyph buffer into a screen/canvas canvas.
+         *
+         * @param glyph           Pointer to the original glyph metric data block
+         * @param display_surface Target memory address of your display canvas
+         * @param canvas_w        Total width of the output canvas
+         * @param scale           The font size scale factor (e.g. 1.5f or 0.75f)
+         */
+        static void s_render_glyph_fast(font_context_t* ctx, u8 glyph_w, u8 glyph_h, u16* display_surface, i32 canvas_w, color_t color, f32 scale)
+        {
+            // The source size is now exactly (width + 2) and (height + 2)
+            // because our C preparation step injected a 1-pixel safety ring.
+            // Calculate final bounding dimensions on screen
+            const i32 target_width  = (i32)((glyph_w + 2) * scale);
+            const i32 target_height = (i32)((glyph_h + 2) * scale);
+
+            const u8* glyph_sram = (const u8*)s_glyph_sram;
+
+            // Pre-calculate inverse scale step size in fixed-point
+            i32 src_y_fp = 0;
+
+            u16*             dst_y     = display_surface;
+            const u16* const dst_y_end = display_surface + (target_height * canvas_w);
+            while (dst_y < dst_y_end)
+            {
+                // Unpack integer vertical coordinates
+                i32 y0 = src_y_fp >> FP_FRAC_BITS;
+                i32 y1 = y0 + 1;
+
+                // Vertical blend weight (fractional component from 0 to 65535)
+                i32 fy_fp = src_y_fp & FP_MASK;
+
+                // Extract direct memory row pointers instantly using bit-shifts (y * 32)
+                // This eliminates all multi-cycle multiplication calls inside the loop.
+                const u8* row0 = &glyph_sram[y0 << 5];
+                const u8* row1 = &glyph_sram[y1 << 5];
+
+                // Locate the target pixel destination row on your canvas
+                u16*             dst_row     = dst_y;
+                const u16* const dst_row_end = dst_y + target_width;
+
+                i32 src_x_fp = 0;
+                while (dst_row < dst_row_end)
+                {
+                    // Unpack integer horizontal coordinates
+                    i32 x0 = src_x_fp >> FP_FRAC_BITS;
+                    i32 x1 = x0 + 1;  // Handled safely by the injected border pixel!
+
+                    // Horizontal blend weight (fractional component from 0 to 65535)
+                    i32 fx_fp = src_x_fp & FP_MASK;
+
+                    // Fetch the 4 neighboring distance values out of SRAM
+                    u8 p00 = row0[x0];
+                    u8 p10 = row0[x1];
+                    u8 p01 = row1[x0];
+                    u8 p11 = row1[x1];
+
+                    // --- Blazing Fast Integer Bilinear Filtering ---
+                    // Formula: Lerp(Lerp(p00, p10, fx), Lerp(p01, p11, fx), fy)
+                    i32 top     = p00 + ((fx_fp * (p10 - p00)) >> FP_FRAC_BITS);
+                    i32 bot     = p01 + ((fx_fp * (p11 - p01)) >> FP_FRAC_BITS);
+                    i32 sdf_val = top + ((fy_fp * (bot - top)) >> FP_FRAC_BITS);
+
+                    // --- Apply SDF Edge Assignment ---
+                    // 128 is the typical mid-point threshold for a standard 8-bit unsigned SDF.
+                    // Adjust the output format to match your display target (Alpha blending or Binary)
+                    if (sdf_val >= ctx->max_edge)
+                    {
+                        *dst_row = color;
+                    }
+                    else if (sdf_val > ctx->min_edge)
+                    {
+                        u32 coverage = ((sdf_val - ctx->min_edge) * 255) >> ctx->shift_bits;
+                        *dst_row     = s_blend_rgb565_a8(*dst_row, color, coverage);
+                    }
+
+                    // Accumulate steps in texture coordinate space
+                    src_x_fp += ctx->inv_scale_fp;
+                    dst_row++;
+                }
+                src_y_fp += ctx->inv_scale_fp;
+                dst_y += canvas_w;  // Move down to the next row on the output canvas
+            }
         }
 
     }  // namespace ngx2
