@@ -714,7 +714,7 @@ namespace ncore
             const i32 span_w = draw_x1 - draw_x0;
 
             // TODO, a sprite might have different pixel formats
-            if (sprite->alpha_data != nullptr)
+            if (sprite->alpha_data.data<u8>() != nullptr)
             {
                 switch (sprite->alpha_format)
                 {
@@ -724,8 +724,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32  src_y = src_y0 + j;
-                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 3)];
+                                const u16* src   = &(sprite->pixel_data.data<u16>())[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + (src_x0 >> 3)];
                                 i32        shift = 7 - (src_x0 & 7);
                                 u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
@@ -751,8 +751,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32  src_y = src_y0 + j;
-                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 2)];
+                                const u16* src   = &(sprite->pixel_data.data<u16>())[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + (src_x0 >> 2)];
                                 i32        shift = 6 - ((src_x0 & 3) << 1);
                                 u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
@@ -778,8 +778,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32  src_y = src_y0 + j;
-                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 1)];
+                                const u16* src   = &(sprite->pixel_data.data<u16>())[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + (src_x0 >> 1)];
                                 bool       high  = (src_x0 & 1) == 0;
                                 u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
@@ -799,8 +799,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32  src_y = src_y0 + j;
-                                const u16* src   = &((const u16*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8*  alpha = &sprite->alpha_data[src_y * alpha_row_stride + src_x0];
+                                const u16* src   = &(sprite->pixel_data.data<u16>())[src_y * (i32)sprite->width + src_x0];
+                                const u8*  alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + src_x0];
                                 u16*       dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++alpha, ++dst)
                                 {
@@ -816,7 +816,7 @@ namespace ncore
             // Opaque path
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
             {
-                const u16* src = &((const u16*)sprite->pixel_data)[(src_y0 + j) * (i32)sprite->width + src_x0];
+                const u16* src = &(sprite->pixel_data.data<u16>())[(src_y0 + j) * (i32)sprite->width + src_x0];
                 u16*       dst = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                 {
@@ -870,10 +870,10 @@ namespace ncore
             const i32 src_y0 = draw_y0 - sprite_y0;
             const i32 span_w = draw_x1 - draw_x0;
 
-            const u16* color_palette = (const u16*)palette->data;
+            const u16* color_palette = palette->data.data<u16>();
 
             // TODO, a sprite might have different pixel formats
-            if (sprite->alpha_data != nullptr)
+            if (sprite->alpha_data.data<u8>() != nullptr)
             {
                 switch (sprite->alpha_format)
                 {
@@ -883,8 +883,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32 src_y = src_y0 + j;
-                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 3)];
+                                const u8* src   = &(sprite->pixel_data.data<u8>())[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + (src_x0 >> 3)];
                                 i32       shift = 7 - (src_x0 & 7);
                                 u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
@@ -910,8 +910,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32 src_y = src_y0 + j;
-                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 2)];
+                                const u8* src   = &(sprite->pixel_data.data<u8>())[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + (src_x0 >> 2)];
                                 i32       shift = 6 - ((src_x0 & 3) << 1);
                                 u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
@@ -938,8 +938,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32 src_y = src_y0 + j;
-                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + (src_x0 >> 1)];
+                                const u8* src   = &(sprite->pixel_data.data<u8>())[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + (src_x0 >> 1)];
                                 bool      high  = (src_x0 & 1) == 0;
                                 u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
@@ -960,8 +960,8 @@ namespace ncore
                             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
                             {
                                 const i32 src_y = src_y0 + j;
-                                const u8* src   = &((const u8*)sprite->pixel_data)[src_y * (i32)sprite->width + src_x0];
-                                const u8* alpha = &sprite->alpha_data[src_y * alpha_row_stride + src_x0];
+                                const u8* src   = &(sprite->pixel_data.data<u8>())[src_y * (i32)sprite->width + src_x0];
+                                const u8* alpha = &sprite->alpha_data.data<u8>()[src_y * alpha_row_stride + src_x0];
                                 u16*      dst   = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                                 for (i32 i = 0; i < span_w; ++i, ++src, ++alpha, ++dst)
                                 {
@@ -978,7 +978,7 @@ namespace ncore
             // Opaque path
             for (i32 j = 0; j < draw_y1 - draw_y0; ++j)
             {
-                const u8* src = &((const u8*)sprite->pixel_data)[(src_y0 + j) * (i32)sprite->width + src_x0];
+                const u8* src = &(sprite->pixel_data.data<u8>())[(src_y0 + j) * (i32)sprite->width + src_x0];
                 u16*      dst = &fb_pixels[draw_x0 + (draw_y0 + j) * fb_w];
                 for (i32 i = 0; i < span_w; ++i, ++src, ++dst)
                 {
@@ -1050,12 +1050,12 @@ namespace ncore
             if (ascii_char > 127)
                 return;
 
-            const u8 glyph_idx = font->m_map[ascii_char];
+            const u8 glyph_idx = font->m_map.data<u8>()[ascii_char];
             if (glyph_idx == 0xFF)
                 return;  // Character not supported
 
-            const glyph_bearing_t*    bearing    = &font->m_glyphs_bearing[glyph_idx];
-            const glyph_dimensions_t* dimensions = &font->m_glyphs_dimensions[glyph_idx];
+            const glyph_bearing_t*    bearing    = &(font->m_glyphs_bearing.data<glyph_bearing_t>()[glyph_idx]);
+            const glyph_dimensions_t* dimensions = &(font->m_glyphs_dimensions.data<glyph_dimensions_t>()[glyph_idx]);
             if (dimensions->m_w == 0 || dimensions->m_h == 0)
                 return;
 
@@ -1078,7 +1078,7 @@ namespace ncore
                 return;
 
             // Locate the exact starting byte offset of this glyph inside the monolithic SDF binary atlas
-            const u8* glyph_bitmap = &font->m_sdf[font->m_offsets[glyph_idx]];
+            const u8* glyph_bitmap = font->m_data.item<u8>(*font->m_offsets.item<u32>(glyph_idx));
 
             s_draw_glyph_sdf_internal(fb, fb_w, out_x, out_y, dst_w, dst_h, clip_x0, clip_y0, clip_x1, clip_y1, glyph_bitmap, dimensions->m_w, text_color, scale);
         }
@@ -1115,12 +1115,12 @@ namespace ncore
                 if (ascii_char > 127)
                     continue;
 
-                const u8 glyph_idx = font->m_map[ascii_char];
+                const u8 glyph_idx = *font->m_map.item<u8>(ascii_char);
                 if (glyph_idx == 0xFF)
                     continue;
 
-                const glyph_bearing_t*    bearing    = &font->m_glyphs_bearing[glyph_idx];
-                const glyph_dimensions_t* dimensions = &font->m_glyphs_dimensions[glyph_idx];
+                const glyph_bearing_t*    bearing    = font->m_glyphs_bearing.item<glyph_bearing_t>(glyph_idx);
+                const glyph_dimensions_t* dimensions = font->m_glyphs_dimensions.item<glyph_dimensions_t>(glyph_idx);
 
                 // Draw glyph if it contains printable visual coverage elements
                 if (dimensions->m_w > 0 && dimensions->m_h > 0)
@@ -1138,13 +1138,13 @@ namespace ncore
                     // Only execute full interpolation loops if the glyph bounding box actually intersects the display view
                     if (clip_x0 < clip_x1 && clip_y0 < clip_y1)
                     {
-                        const u8* glyph_bitmap = &font->m_sdf[font->m_offsets[glyph_idx]];
+                        const u8* glyph_bitmap = font->m_data.item<u8>(*font->m_offsets.item<u32>(glyph_idx));
                         s_draw_glyph_sdf_internal(fb, fb_w, out_x, out_y, dst_w, dst_h, clip_x0, clip_y0, clip_x1, clip_y1, glyph_bitmap, dimensions->m_w, text_color, scale);
                     }
                 }
 
                 // Always advance the pen layout horizontally, even for spaces or clipped elements
-                pen_x += (i32)((f32)font->m_glyphs_advance_x[glyph_idx] * scale);
+                pen_x += (i32)((f32)*font->m_glyphs_advance_x.item<i8>(glyph_idx) * scale);
             }
         }
 
@@ -1166,7 +1166,7 @@ namespace ncore
         #define FP_FRAC_BITS 16
         #define FP_ONE       (1 << FP_FRAC_BITS)
         #define FP_MASK      (FP_ONE - 1)
-        
+
         #define TO_FP(f) ((i32)((f) * FP_ONE))
         // clang-format on
 
@@ -1214,126 +1214,103 @@ namespace ncore
             return ctx;
         }
 
-        static void s_prepare_glyph_and_inject_border_fast(u8 glyph_w, u8 glyph_h, const u8* glyph_data)
-        {
-            const u8* src = glyph_data;
-
-            u8*       sram_ptr = (u8*)s_glyph_sram + 32;
-            const u8* sram_end = sram_ptr + ((i32)glyph_h << 5);
-
-            const i32 width_in_words = (((i32)glyph_w + 2) + 3) >> 2;
-
-            // 1. Clear the TOP 1-pixel safety border row (32-bit word stores)
-            // Static memory should already be zeroed, so no need to clear the top row explicitly.
-
-            // 2. Stream the tight active data rows using incrementing pointers
-            while (sram_ptr < sram_end)
-            {
-                u8* dst = sram_ptr;  // Fast shift to next row head
-
-                // Write LEFT border pixel and advance pointer
-                *dst++ = 0;
-
-                // Copy raw tight visual data via sequential pointer reads/writes
-                const u8* const end = dst + glyph_w;
-                while (dst < end)
-                    *dst++ = *src++;
-                // Write RIGHT border pixel at the final position
-                *dst = 0;
-
-                sram_ptr += 32;  // Move to the next row head
-            }
-
-            // 3. Clear the BOTTOM 1-pixel safety border row
-            u32* bot_row32 = (u32*)sram_ptr;
-            for (i32 i = 0; i < width_in_words; i++)
-            {
-                *bot_row32++ = 0;
-            }
-        }
-
         /**
          * Renders the prepared SRAM glyph buffer into a screen/canvas canvas.
          *
-         * @param glyph           Pointer to the original glyph metric data block
-         * @param display_surface Target memory address of your display canvas
-         * @param canvas_w        Total width of the output canvas
+         * @param font            Pointer to the font structure containing glyph metrics and SDF data
+         * @param ctx             Pointer to the font context containing rendering parameters
+         * @param glyph_index     Index of the glyph to render (0-127 for ASCII)
+         * @param pen_x           X-coordinate of the pen position on the canvas
+         * @param pen_y           Y-coordinate of the pen position on the canvas
+         * @param fb              Framebuffer pointer to the output canvas pixel data
+         * @param fb_yl           Lower Y clipping bound = fb + (clip_y0 * fb_w)
+         * @param fb_yh           Upper Y clipping bound = fb + (clip_y1 * fb_w)
+         * @param fb_w            Total width of the framebuffer/canvas in pixels
+         * @param color           The RGB565 color to render the glyph with
          * @param scale           The font size scale factor (e.g. 1.5f or 0.75f)
          */
-        static void s_render_glyph_fast(font_context_t* ctx, u8 glyph_w, u8 glyph_h, u16* display_surface, i32 canvas_w, color_t color, f32 scale)
+        static void s_render_glyph_fast(font_t* font, font_context_t* ctx, u8 glyph_index, u16 pen_x, u16 pen_y, u16* fb, u16 const* fb_yl, u16 const* fb_yh, u16 fb_w, color_t color, f32 scale)
         {
-            // The source size is now exactly (width + 2) and (height + 2)
-            // because our C preparation step injected a 1-pixel safety ring.
-            // Calculate final bounding dimensions on screen
-            const i32 target_width  = (i32)((glyph_w + 2) * scale);
-            const i32 target_height = (i32)((glyph_h + 2) * scale);
+            const glyph_dimensions_t& dims = *font->m_glyphs_dimensions.item<glyph_dimensions_t>(glyph_index);
 
-            const u8* glyph_sram = (const u8*)s_glyph_sram;
+            // Get the glyph width and height from the dimensions structure
+            const i32 glyph_w      = (i32)dims.m_w;
+            const i32 glyph_h      = (i32)dims.m_h;
+            const u32 glyph_offset = *font->m_offsets.item<u32>(glyph_index);
+            const u32 glyph_size   = glyph_w * glyph_h;
+            const u8* glyph_data   = font->m_data.item<u8>(glyph_offset);
 
-            // Pre-calculate inverse scale step size in fixed-point
+            const i32 target_width  = (i32)(glyph_w * scale);
+            const i32 target_height = (i32)(glyph_h * scale);
+
+            // Locate the target pixel destination row on your canvas
+            u16*             dst_y     = fb + (pen_y * fb_w);
+            const u16* const dst_y_end = dst_y + (target_height * fb_w);
+
             i32 src_y_fp = 0;
-
-            u16*             dst_y     = display_surface;
-            const u16* const dst_y_end = display_surface + (target_height * canvas_w);
-            while (dst_y < dst_y_end)
+            while (dst_y < dst_y_end && dst_y < fb_yh)
             {
-                // Unpack integer vertical coordinates
-                i32 y0 = src_y_fp >> FP_FRAC_BITS;
-                i32 y1 = y0 + 1;
-
-                // Vertical blend weight (fractional component from 0 to 65535)
-                i32 fy_fp = src_y_fp & FP_MASK;
-
-                // Extract direct memory row pointers instantly using bit-shifts (y * 32)
-                // This eliminates all multi-cycle multiplication calls inside the loop.
-                const u8* row0 = &glyph_sram[y0 << 5];
-                const u8* row1 = &glyph_sram[y1 << 5];
-
-                // Locate the target pixel destination row on your canvas
-                u16*             dst_row     = dst_y;
-                const u16* const dst_row_end = dst_y + target_width;
-
-                i32 src_x_fp = 0;
-                while (dst_row < dst_row_end)
+                if (dst_y >= fb_yl)
                 {
-                    // Unpack integer horizontal coordinates
-                    i32 x0 = src_x_fp >> FP_FRAC_BITS;
-                    i32 x1 = x0 + 1;  // Handled safely by the injected border pixel!
+                    // Unpack integer vertical coordinates
+                    i32 y0        = src_y_fp >> FP_FRAC_BITS;
+                    i32 rowOffset = y0 * glyph_w;
 
-                    // Horizontal blend weight (fractional component from 0 to 65535)
-                    i32 fx_fp = src_x_fp & FP_MASK;
+                    // Vertical blend weight (fractional component from 0 to 65535)
+                    i32 fy_fp = src_y_fp & FP_MASK;
 
-                    // Fetch the 4 neighboring distance values out of SRAM
-                    u8 p00 = row0[x0];
-                    u8 p10 = row0[x1];
-                    u8 p01 = row1[x0];
-                    u8 p11 = row1[x1];
+                    // Extract direct memory row pointers instantly using bit-shifts (y * 32)
+                    // This eliminates all multi-cycle multiplication calls inside the loop.
+                    const u8* row0 = &glyph_data[rowOffset];
+                    const u8* row1 = &glyph_data[rowOffset + glyph_w];
 
-                    // --- Blazing Fast Integer Bilinear Filtering ---
-                    // Formula: Lerp(Lerp(p00, p10, fx), Lerp(p01, p11, fx), fy)
-                    i32 top     = p00 + ((fx_fp * (p10 - p00)) >> FP_FRAC_BITS);
-                    i32 bot     = p01 + ((fx_fp * (p11 - p01)) >> FP_FRAC_BITS);
-                    i32 sdf_val = top + ((fy_fp * (bot - top)) >> FP_FRAC_BITS);
+                    // Locate the target pixel destination row on your canvas
+                    u16*             dst_row     = dst_y;
+                    const u16* const dst_row_end = dst_y + (pen_x + target_width);
 
-                    // --- Apply SDF Edge Assignment ---
-                    // 128 is the typical mid-point threshold for a standard 8-bit unsigned SDF.
-                    // Adjust the output format to match your display target (Alpha blending or Binary)
-                    if (sdf_val >= ctx->max_edge)
+                    i32 src_x_fp = 0;
+                    while (dst_row < dst_row_end)
                     {
-                        *dst_row = color;
-                    }
-                    else if (sdf_val > ctx->min_edge)
-                    {
-                        u32 coverage = ((sdf_val - ctx->min_edge) * 255) >> ctx->shift_bits;
-                        *dst_row     = s_blend_rgb565_a8(*dst_row, color, coverage);
-                    }
+                        // Unpack integer horizontal coordinates
+                        i32 x0 = src_x_fp >> FP_FRAC_BITS;
+                        i32 x1 = x0 + 1;  // Handled safely by the injected border pixel!
 
-                    // Accumulate steps in texture coordinate space
-                    src_x_fp += ctx->inv_scale_fp;
-                    dst_row++;
+                        // Horizontal blend weight (fractional component from 0 to 65535)
+                        i32 fx_fp = src_x_fp & FP_MASK;
+
+                        // Fetch the 4 neighboring distance values out of SRAM
+                        i32 p00 = (i32)((u32)row0[x0]);
+                        i32 p10 = (i32)((u32)row0[x1]);
+                        i32 p01 = (i32)((u32)row1[x0]);
+                        i32 p11 = (i32)((u32)row1[x1]);
+
+                        // --- Integer Bilinear Filtering ---
+                        // Formula: Lerp(Lerp(p00, p10, fx), Lerp(p01, p11, fx), fy)
+                        const i32 top     = p00 + ((fx_fp * (p10 - p00)) >> FP_FRAC_BITS);
+                        const i32 bot     = p01 + ((fx_fp * (p11 - p01)) >> FP_FRAC_BITS);
+                        const i32 sdf_val = top + ((fy_fp * (bot - top)) >> FP_FRAC_BITS);
+
+                        // --- Apply SDF Edge Assignment ---
+                        // 128 is the typical mid-point threshold for a standard 8-bit unsigned SDF.
+                        // Adjust the output format to match your display target (Alpha blending or Binary)
+                        if (sdf_val >= ctx->max_edge)
+                        {
+                            *dst_row = color;
+                        }
+                        else if (sdf_val > ctx->min_edge)
+                        {
+                            u32 coverage = (u32)(((sdf_val - ctx->min_edge) * 255) >> ctx->shift_bits);
+                            *dst_row     = s_blend_rgb565_a8(*dst_row, color, coverage);
+                        }
+
+                        // Accumulate steps in texture coordinate space
+                        src_x_fp += ctx->inv_scale_fp;
+                        dst_row++;
+                    }
                 }
+
                 src_y_fp += ctx->inv_scale_fp;
-                dst_y += canvas_w;  // Move down to the next row on the output canvas
+                dst_y += fb_w;  // Move down to the next row on the output canvas
             }
         }
 
