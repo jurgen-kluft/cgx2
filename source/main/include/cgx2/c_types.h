@@ -95,10 +95,22 @@ namespace ncore
             slice_t alpha_data;     // packed alpha map; each row starts on a byte boundary
         };
 
+        struct sprite_pack_t
+        {
+            u32     num_sprites;  // number of sprites in the pack
+            slice_t sprites;      // <sprite_t>, array of sprites
+        };
+
         struct palette_t
         {
             u32     format;  // image_format_t
             slice_t data;    // array of colors
+        };
+
+        struct palette_pack_t
+        {
+            u32     num_palettes;  // number of palettes in the pack
+            slice_t palettes;      // <palette_t>, array of palettes
         };
 
         struct glyph_bearing_t
@@ -125,6 +137,12 @@ namespace ncore
             i8      m_descent;            // distance from baseline to bottom of font (negative value)
             i8      m_line_gap;           // distance from bottom of one line to top of next line (can be negative)
             u8      m_font_type;          // 0 = bitmap font, 1 = SDF font
+        };
+
+        struct font_pack_t
+        {
+            u32     num_fonts;  // number of fonts in the pack
+            slice_t fonts;      // <font_t>, array of fonts
         };
 
         struct rect_t
