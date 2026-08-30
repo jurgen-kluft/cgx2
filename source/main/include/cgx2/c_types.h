@@ -13,9 +13,9 @@ namespace ncore
     {
         enum image_format_t
         {
-            FMT_PIXEL_RGB565   = 0x01,  // RGB565 (16-bit) with no alpha
-            FMT_PIXEL_RGBA8888 = 0x02,  // RGBA8888 (32-bit)
-            FMT_PIXEL_I8       = 0x03,  // Indexed 8-bit (with RGBA palette)
+            FMT_PIXEL_RGB565   = 0x12,  // RGB565 (16-bit) with no alpha
+            FMT_PIXEL_RGBA8888 = 0x24,  // RGBA8888 (32-bit)
+            FMT_PIXEL_I8       = 0x31,  // Indexed 8-bit (with RGBA palette)
         };
 
         enum alpha_format_t
@@ -33,40 +33,42 @@ namespace ncore
             FMT_PALETTE_RGB565   = 0x02   // RGB565 (16-bit)
         };
 
-        struct slice_t
+        struct string_t
         {
-            inline u32 size() { return m_size; }
+            inline u32         size() const { return m_size_in_runes; }
+            inline char const* str() const { return (char const*)((u8 const*)this + m_offset); }
+            inline char const* end() const { return (char const*)((u8 const*)this + m_offset + m_size_in_bytes); }
 
-            template <typename T>
-            inline T* data()
-            { return ((byte*)&m_offset + m_offset); }
+            i64 m_offset;         // offset from the start of the string_t to the first character
+            u32 m_size_in_bytes;  // number of characters in the string (not including null terminator)
+            u32 m_size_in_runes;  // number of Unicode code points (runes) in the string
+        };
 
-            template <typename T>
-            inline T* item(u32 index)
-            {
-                if (index >= m_size)
-                    return nullptr;
+        template <typename K, typename V>
+        struct map_t
+        {
+            inline u64 size() const { return m_num_entries; }
+            inline K*  keys() { return (K*)((u8*)this + m_key_offset); }
+            inline V*  values() { return (V*)((u8*)this + m_value_offset); }
+            inline K*  key(u32 index) { return (index < m_num_entries) ? keys()[index] : nullptr; }
+            inline V*  value(u32 index) { return (index < m_num_entries) ? values()[index] : nullptr; }
 
-                T* array = (T*)((byte*)&m_offset + m_offset);
-                return &array[index];
-            }
+            i64 m_key_offset;    // offset from the start of the map_t to the first key
+            i64 m_value_offset;  // offset from the start of the map_t to the first value
+            u64 m_num_entries;   // number of key-value pairs in the map
+        };
 
-            template <typename T>
-            inline T const* data() const
-            { return ((byte const*)&m_offset + m_offset); }
+        template <typename T>
+        struct array_t
+        {
+            inline u64      size() const { return m_size; }
+            inline T*       data() { return (T*)((u8*)this + m_offset); }
+            inline T const* data() const { return (T const*)((u8 const*)this + m_offset); }
+            inline T*       item(u32 index) { return (index < m_size) ? data()[index] : nullptr; }
+            inline T const* item(u32 index) const { return (index < m_size) ? data()[index] : nullptr; }
 
-            template <typename T>
-            inline T const* item(u32 index) const
-            {
-                if (index >= m_size)
-                    return nullptr;
-                T const* array = (T const*)((byte const*)&m_offset + m_offset);
-                return &array[index];
-            }
-
-        private:
-            u32 m_size;
-            i32 m_offset;
+            i64 m_offset;
+            u64 m_size;
         };
 
         struct image_descr_t
@@ -77,40 +79,46 @@ namespace ncore
             image_format_t format;    // pixel format
         };
 
+        struct image_t
+        {
+            image_descr_t descr;   // image description (width, height, format)
+            void*         pixels;  // pixel data
+        };
+
+        // Framebuffer is RGB565 format, 16-bit per pixel, no alpha channel
         struct framebuffer_t
         {
-            image_descr_t descr;   // framebuffer description (width, height, format)
-            void*         pixels;  // pixel data
+            u16   width;   // width in pixels
+            u16   height;  // height in pixels
+            void* pixels;  // pixel data
         };
 
         struct sprite_t
         {
-            u16     width;          //
-            u16     height;         //
-            u8      pixel_format;   // image_format_t
-            u8      alpha_format;   // alpha_format_t; packed samples are stored most-significant bits first
-            u8      reserved;       //
-            u8      palette_index;  //
-            slice_t pixel_data;     //
-            slice_t alpha_data;     // packed alpha map; each row starts on a byte boundary
+            u16           width;          //
+            u16           height;         //
+            u8            pixel_format;   // image_format_t
+            u8            alpha_format;   // alpha_format_t; packed samples are stored most-significant bits first
+            u8            palette_index;  //
+            u8            reserved;       //
+            array_t<byte> pixel_data;     //
+            array_t<byte> alpha_data;     // packed alpha map; each row starts on a byte boundary
         };
 
         struct sprite_pack_t
         {
-            u32     num_sprites;  // number of sprites in the pack
-            slice_t sprites;      // <sprite_t>, array of sprites
+            array_t<sprite_t> sprites;  // <sprite_t>, array of sprites
         };
 
         struct palette_t
         {
-            u32     format;  // image_format_t
-            slice_t data;    // array of colors
+            u32           format;  // image_format_t
+            array_t<byte> data;    // array of colors
         };
 
         struct palette_pack_t
         {
-            u32     num_palettes;  // number of palettes in the pack
-            slice_t palettes;      // <palette_t>, array of palettes
+            array_t<palette_t> palettes;  // <palette_t>, array of palettes
         };
 
         struct glyph_bearing_t
@@ -127,22 +135,21 @@ namespace ncore
 
         struct font_t
         {
-            slice_t m_data;               // <u8>, actual font data (bitmap or SDF)
-            slice_t m_glyphs_advance_x;   // <i8>, horizontal distance from the pen position to the next character's pen position, indexed as glyph[map[ASCII character]]
-            slice_t m_glyphs_bearing;     // <glyph_bearing_t>, glyphs array, indexed as glyph[map[ASCII character]]
-            slice_t m_glyphs_dimensions;  // <glyph_dimensions_t>, glyphs array, indexed as glyph[map[ASCII character]]
-            slice_t m_offsets;            // <u32>, offset = (offsets[map[ASCII character]]) into the coverage data for the glyph
-            slice_t m_map;                // <u8>, maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
-            i8      m_ascent;             // distance from baseline to top of font
-            i8      m_descent;            // distance from baseline to bottom of font (negative value)
-            i8      m_line_gap;           // distance from bottom of one line to top of next line (can be negative)
-            u8      m_font_type;          // 0 = bitmap font, 1 = SDF font
+            array_t<u8>                 m_data;               // actual font data (bitmap or SDF)
+            array_t<i8>                 m_glyphs_advance_x;   // horizontal distance from the pen position to the next character's pen position, indexed as glyph[map[ASCII character]]
+            array_t<glyph_bearing_t>    m_glyphs_bearing;     // glyphs array, indexed as glyph[map[ASCII character]]
+            array_t<glyph_dimensions_t> m_glyphs_dimensions;  // glyphs array, indexed as glyph[map[ASCII character]]
+            array_t<u16>                m_offsets;            // offset = (offsets[map[ASCII character]] * 8) into the coverage data for the glyph
+            array_t<u8>                 m_map;                // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
+            i8                          m_ascent;             // distance from baseline to top of font
+            i8                          m_descent;            // distance from baseline to bottom of font (negative value)
+            i8                          m_line_gap;           // distance from bottom of one line to top of next line (can be negative)
+            u8                          m_font_type;          // 0 = bitmap font, 1 = SDF font
         };
 
         struct font_pack_t
         {
-            u32     num_fonts;  // number of fonts in the pack
-            slice_t fonts;      // <font_t>, array of fonts
+            array_t<font_t> fonts;  // array of fonts
         };
 
         struct rect_t
