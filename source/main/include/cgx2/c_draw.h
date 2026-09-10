@@ -27,8 +27,8 @@ namespace ncore
         void draw_ellipse(framebuffer_t& ctx, rect_t const& scissor, i32 x, i32 y, i32 rx, i32 ry, bool fill, color_t src);
         void draw_rectangle(framebuffer_t& ctx, rect_t const& scissor, i32 x, i32 y, i32 w, i32 h, bool fill, color_t src);
 
-        void draw_sprite(framebuffer_t& ctx, rect_t const& scissor, sprite_t* sprite, i32 x, i32 y);
-        void draw_sprite(framebuffer_t& ctx, rect_t const& scissor, sprite_t* sprite, palette_t* palette, i32 x, i32 y);
+        void draw_sprite(framebuffer_t& ctx, rect_t const& scissor, sprite_t* sprite, palette_t* palette, i32 x, i32 y, color_t color);
+        void draw_sprite_with_scale(framebuffer_t& ctx, rect_t const& scissor, sprite_t* sprite, palette_t* palette, i32 x, i32 y, f32 scale, color_t color);
 
         // Draw a single line of byte-mapped glyphs with (x, y) as the pen baseline origin.
         void draw_text(framebuffer_t& ctx, font_t* font, i32 x, i32 y, const char* text, color_t src, f32 scale = 1.0f);

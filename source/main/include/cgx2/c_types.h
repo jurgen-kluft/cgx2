@@ -20,7 +20,7 @@ namespace ncore
 
         enum alpha_format_t
         {
-            FMT_ALPHA_A0 = 0,
+            FMT_ALPHA_A0 = 0, // No alpha (fully opaque)
             FMT_ALPHA_A1 = 1,
             FMT_ALPHA_A2 = 2,
             FMT_ALPHA_A4 = 4,
@@ -113,7 +113,7 @@ namespace ncore
         struct palette_t
         {
             u32           format;  // image_format_t
-            array_t<byte> data;    // array of colors
+            array_t<byte> data;    // array of RGB565 colors
         };
 
         struct palette_pack_t
@@ -153,9 +153,7 @@ namespace ncore
         };
 
         struct rect_t
-        {
-            i16 x, y, w, h;
-        };
+        { i16 x, y, w, h; };
 
         inline bool is_y_in_rect(i32 y, rect_t const& r) { return (y >= r.y && y < r.y + r.h); }
         inline bool is_x_in_rect(i32 x, rect_t const& r) { return (x >= r.x && x < r.x + r.w); }
