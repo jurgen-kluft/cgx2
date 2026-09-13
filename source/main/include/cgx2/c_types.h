@@ -111,6 +111,13 @@ namespace ncore
             array_t<sprite_t> sprites;    // <sprite_t>, array of sprites
         };
 
+        inline sprite_t* get_sprite(sprite_pack_t* sprite_pack, u32 index) 
+        { 
+            if (index < sprite_pack->sprites.m_size) 
+                return sprite_pack->sprites.item(index);
+            return nullptr; 
+        }
+
         struct palette_t
         {
             u32           format;  // image_format_t
@@ -154,6 +161,13 @@ namespace ncore
             u32             m_version;  // version of the font pack format
             array_t<font_t> fonts;      // array of fonts
         };
+
+        inline font_t* get_font(font_pack_t* pack, u32 font_index)
+        {
+            if (font_index >= pack->fonts.m_size)
+                return nullptr;
+            return pack->fonts.item(font_index);
+        }
 
         struct rect_t
         { i16 x, y, w, h; };
