@@ -20,7 +20,7 @@ namespace ncore
 
         enum alpha_format_t
         {
-            FMT_ALPHA_A0 = 0, // No alpha (fully opaque)
+            FMT_ALPHA_A0 = 0,  // No alpha (fully opaque)
             FMT_ALPHA_A1 = 1,
             FMT_ALPHA_A2 = 2,
             FMT_ALPHA_A4 = 4,
@@ -107,7 +107,8 @@ namespace ncore
 
         struct sprite_pack_t
         {
-            array_t<sprite_t> sprites;  // <sprite_t>, array of sprites
+            u32               m_version;  // version of the sprite pack format
+            array_t<sprite_t> sprites;    // <sprite_t>, array of sprites
         };
 
         struct palette_t
@@ -118,7 +119,8 @@ namespace ncore
 
         struct palette_pack_t
         {
-            array_t<palette_t> palettes;  // <palette_t>, array of palettes
+            u32                m_version;  // version of the palette pack format
+            array_t<palette_t> palettes;   // <palette_t>, array of palettes
         };
 
         struct glyph_bearing_t
@@ -149,7 +151,8 @@ namespace ncore
 
         struct font_pack_t
         {
-            array_t<font_t> fonts;  // array of fonts
+            u32             m_version;  // version of the font pack format
+            array_t<font_t> fonts;      // array of fonts
         };
 
         struct rect_t
