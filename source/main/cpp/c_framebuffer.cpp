@@ -19,20 +19,19 @@ namespace ncore
 
         void init_framebuffer(framebuffer_t& fb, image_descr_t const& descr, void* pixels)
         {
-            fb.descr = descr;
-            fb.pixels = pixels;
+            fb.width  = descr.width;
+            fb.height = descr.height;
+            fb.pixels = rgb565(pixels);
         }
 
         void clear_full_framebuffer(framebuffer_t& fb, color_t color)
         {
-            if (fb.descr.format == FMT_PIXEL_RGB565)
+            if (fb.pixels && fb.width && fb.height) // Assuming RGB565
             {
-                // Convert RGBA8888 to RGB565 with simple bit-shift truncation (no dithering or error diffusion).
-                const u16 c = color;
-                const u32 pixel_count = (u32)fb.descr.width * (u32)fb.descr.height;
+                const u32 pixel_count = (u32)fb.width * (u32)fb.height;
                 u16*      pixels      = rgb565(fb.pixels);
                 for (u32 i = 0; i < pixel_count; ++i)
-                    pixels[i] = c;
+                    pixels[i] = color;
             }
         }
 

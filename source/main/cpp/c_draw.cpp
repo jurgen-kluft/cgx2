@@ -1323,7 +1323,8 @@ namespace ncore
 
             // --- Blazing Fast Hardware Power-of-Two Mapping ---
             // Finds the next highest power of two instantly
-            u32 shift = 32 - __builtin_clz(width_units - 1);
+            //u32 shift = 32 - __builtin_clz(width_units - 1);
+            const s8 shift = 32 - math::countLeadingZeros((u32)(width_units - 1));
 
             i32 final_width_units = (1 << shift);
 

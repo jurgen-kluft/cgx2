@@ -11,11 +11,12 @@ namespace ncore
 
     namespace ngx2
     {
+        typedef u16 color_t;
+
         enum image_format_t
         {
-            FMT_PIXEL_RGB565   = 0x12,  // RGB565 (16-bit) with no alpha
-            FMT_PIXEL_RGBA8888 = 0x24,  // RGBA8888 (32-bit)
-            FMT_PIXEL_I8       = 0x31,  // Indexed 8-bit (with RGBA palette)
+            FMT_PIXEL_RGB565 = 0x12,  // RGB565 (16-bit) with no alpha
+            FMT_PIXEL_I8     = 0x31,  // Indexed 8-bit (with RGBA palette)
         };
 
         enum alpha_format_t
@@ -50,8 +51,8 @@ namespace ncore
             inline u64 size() const { return m_num_entries; }
             inline K*  keys() { return (K*)((u8*)this + m_key_offset); }
             inline V*  values() { return (V*)((u8*)this + m_value_offset); }
-            inline K*  key(u32 index) { return (index < m_num_entries) ? keys()[index] : nullptr; }
-            inline V*  value(u32 index) { return (index < m_num_entries) ? values()[index] : nullptr; }
+            inline K*  key(u32 index) { return (index < m_num_entries) ? &(keys()[index]) : nullptr; }
+            inline V*  value(u32 index) { return (index < m_num_entries) ? &(values()[index]) : nullptr; }
 
             i64 m_key_offset;    // offset from the start of the map_t to the first key
             i64 m_value_offset;  // offset from the start of the map_t to the first value
@@ -64,8 +65,8 @@ namespace ncore
             inline u64      size() const { return m_size; }
             inline T*       data() { return (T*)((u8*)this + m_offset); }
             inline T const* data() const { return (T const*)((u8 const*)this + m_offset); }
-            inline T*       item(u32 index) { return (index < m_size) ? data()[index] : nullptr; }
-            inline T const* item(u32 index) const { return (index < m_size) ? data()[index] : nullptr; }
+            inline T*       item(u32 index) { return (index < m_size) ? &(data()[index]) : nullptr; }
+            inline T const* item(u32 index) const { return (index < m_size) ? &(data()[index]) : nullptr; }
 
             i64 m_offset;
             u64 m_size;
@@ -88,9 +89,9 @@ namespace ncore
         // Framebuffer is RGB565 format, 16-bit per pixel, no alpha channel
         struct framebuffer_t
         {
-            u16   width;   // width in pixels
-            u16   height;  // height in pixels
-            void* pixels;  // pixel data
+            u16      width;   // width in pixels
+            u16      height;  // height in pixels
+            color_t* pixels;  // pixel data
         };
 
         struct sprite_t
@@ -111,11 +112,11 @@ namespace ncore
             array_t<sprite_t> sprites;    // <sprite_t>, array of sprites
         };
 
-        inline sprite_t* get_sprite(sprite_pack_t* sprite_pack, u32 index) 
-        { 
-            if (index < sprite_pack->sprites.m_size) 
+        inline sprite_t* get_sprite(sprite_pack_t* sprite_pack, u32 index)
+        {
+            if (index < sprite_pack->sprites.m_size)
                 return sprite_pack->sprites.item(index);
-            return nullptr; 
+            return nullptr;
         }
 
         struct palette_t
@@ -170,7 +171,9 @@ namespace ncore
         }
 
         struct rect_t
-        { i16 x, y, w, h; };
+        {
+            i16 x, y, w, h;
+        };
 
         inline bool is_y_in_rect(i32 y, rect_t const& r) { return (y >= r.y && y < r.y + r.h); }
         inline bool is_x_in_rect(i32 x, rect_t const& r) { return (x >= r.x && x < r.x + r.w); }
@@ -195,8 +198,6 @@ namespace ncore
                 y1    = t;
             }
         }
-
-        typedef u16 color_t;
 
         inline u32 bytes_per_pixel(image_format_t format) { return format & 0xF; }
         inline u32 bytes_per_row(image_format_t format, u32 width) { return width * bytes_per_pixel(format); }
