@@ -85,14 +85,20 @@ UNITTEST_SUITE_BEGIN(gx2)
             indexed_sprite.width                 = 2;
             indexed_sprite.height                = 1;
             indexed_sprite.pixel_format          = ngx2::FMT_PIXEL_I8;
-            indexed_sprite.alpha_format          = ngx2::FMT_ALPHA_A4;
+            indexed_sprite.alpha_format          = ngx2::FMT_ALPHA_A0;
             init_bytes(indexed_sprite.pixel_data, indices, sizeof(indices));
             ngx2::palette_t palette = {ngx2::FMT_PALETTE_RGB565, {}};
             init_bytes(palette.data, palette_colors, sizeof(palette_colors));
 
             ngx2::draw_sprite(fb, scissor, &indexed_sprite, &palette, 0, 0, 0x07e0);
-            CHECK(framebuffer_pixels[0] == 0x07e0);
-            CHECK(framebuffer_pixels[1] == 0xf800);
+            CHECK_EQUAL(0x07e0, framebuffer_pixels[0]);
+            CHECK_EQUAL(0xf800, framebuffer_pixels[1]);
+
+            framebuffer_pixels[0] = 0x001f;
+            framebuffer_pixels[1] = 0x001f;
+            ngx2::draw_sprite(fb, scissor, &indexed_sprite, nullptr, 0, 0, 0x07e0);
+            CHECK(framebuffer_pixels[0] == 0x001f);
+            CHECK(framebuffer_pixels[1] == 0x001f);
         }
 
         UNITTEST_TEST(sprite_alpha_a1_rows_and_clipping)
@@ -167,7 +173,7 @@ UNITTEST_SUITE_BEGIN(gx2)
             ngx2::framebuffer_t fb_a8       = {2, 1, pixels_a8};
             ngx2::draw_sprite(fb_a8, scissor, &sprite, nullptr, 0, 0, 0);
             CHECK(pixels_a8[0] == 0x0000);
-            CHECK(pixels_a8[1] == 0x8410);
+            CHECK_EQUAL(0x7bef, pixels_a8[1]);
         }
 
         UNITTEST_TEST(sprite_alpha_packed_clipping)
@@ -268,7 +274,7 @@ UNITTEST_SUITE_BEGIN(gx2)
             ngx2::color_t       pixels_a8[] = {0, 0};
             ngx2::framebuffer_t fb_a8       = {2, 1, pixels_a8};
             ngx2::draw_sprite(fb_a8, scissor, &sprite, &palette, 0, 0, 0);
-            CHECK(pixels_a8[0] == 0x8410);
+            CHECK_EQUAL(0x7bef, pixels_a8[0]);
             CHECK(pixels_a8[1] == 0xffff);
         }
 

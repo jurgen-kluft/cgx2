@@ -720,7 +720,7 @@ namespace ncore
             const i32 src_y0 = draw_y0 - sprite_y0;
             const i32 span_w = draw_x1 - draw_x0;
 
-            const u16* color_palette = (u16 const*)palette->data.data();
+            const u16* color_palette = palette == nullptr ? nullptr : (u16 const*)palette->data.data();
 
             if (sprite->pixel_data.data() != nullptr)
             {

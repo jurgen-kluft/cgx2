@@ -654,15 +654,20 @@ namespace ncore
                 return bearing != nullptr && dimensions != nullptr;
             }
 
-            static void s_draw_glyph_sdf(ctx_t& ctx, font_t const& font, glyph_bearing_t const& bearing, glyph_dimensions_t const& dimensions, u16 offset, i32 pen_x, i32 pen_y, u16 color, f32 scale)
-            {
-                u32 const source_pixels = (u32)dimensions.m_w * dimensions.m_h;
-                u32 const source_bytes  = (source_pixels + 1) >> 1;
+            static constexpr i32 c_fixed_fraction_bits = 16;
+            static constexpr i32 c_fixed_one           = 1 << c_fixed_fraction_bits;
 
-                i32 const output_x = pen_x + (i32)((f32)bearing.m_x * scale);
-                i32 const output_y = pen_y - (i32)((f32)bearing.m_y * scale);
-                i32 const output_width  = (i32)((f32)dimensions.m_w * scale);
-                i32 const output_height = (i32)((f32)dimensions.m_h * scale);
+            static i32 s_scale_metric(i32 metric, i32 scale_fixed)
+            {
+                return (i32)(((i64)metric * scale_fixed) / c_fixed_one);
+            }
+
+            static void s_draw_glyph_sdf(ctx_t& ctx, u8 const* glyph_data, glyph_bearing_t const& bearing, glyph_dimensions_t const& dimensions, i32 pen_x, i32 pen_y, u16 color, i32 scale_fixed)
+            {
+                i32 const output_x      = pen_x + s_scale_metric(bearing.m_x, scale_fixed);
+                i32 const output_y      = pen_y - s_scale_metric(bearing.m_y, scale_fixed);
+                i32 const output_width  = s_scale_metric(dimensions.m_w, scale_fixed);
+                i32 const output_height = s_scale_metric(dimensions.m_h, scale_fixed);
 
                 i32 const output_x1 = output_x + output_width;
                 i32 const output_y1 = output_y + output_height;
@@ -674,19 +679,18 @@ namespace ncore
                 if (!s_clip_rect(ctx, clip_x0, clip_y0, clip_x1, clip_y1))
                     return;
 
-                u8 const* glyph_data = font.m_data.data() + offset;
-                f32 const step        = 1.0f / scale;
-                f32 source_y          = (f32)(clip_y0 - output_y) * step;
-                for (i32 destination_y = clip_y0; destination_y < clip_y1; ++destination_y, source_y += step)
+                i32 const source_step_fixed = (i32)(((i64)c_fixed_one * c_fixed_one) / scale_fixed);
+                i32 source_y_fixed          = (i32)((i64)(clip_y0 - output_y) * source_step_fixed);
+                for (i32 destination_y = clip_y0; destination_y < clip_y1; ++destination_y, source_y_fixed += source_step_fixed)
                 {
-                    i32 source_row = (i32)source_y;
+                    i32 source_row = source_y_fixed >> c_fixed_fraction_bits;
                     if (source_row >= dimensions.m_h)
                         source_row = dimensions.m_h - 1;
-                    f32 source_x = (f32)(clip_x0 - output_x) * step;
-                    u16* row      = s_row(ctx, destination_y);
-                    for (i32 destination_x = clip_x0; destination_x < clip_x1; ++destination_x, source_x += step)
+                    i32 source_x_fixed = (i32)((i64)(clip_x0 - output_x) * source_step_fixed);
+                    u16* row           = s_row(ctx, destination_y);
+                    for (i32 destination_x = clip_x0; destination_x < clip_x1; ++destination_x, source_x_fixed += source_step_fixed)
                     {
-                        i32 source_column = (i32)source_x;
+                        i32 source_column = source_x_fixed >> c_fixed_fraction_bits;
                         if (source_column >= dimensions.m_w)
                             source_column = dimensions.m_w - 1;
                         i32 const pixel_index = source_row * dimensions.m_w + source_column;
@@ -700,7 +704,7 @@ namespace ncore
 
             void draw_text(ctx_t& ctx, font_t* font, u16 fontSize, i32 x, i32 y, const char* text)
             {
-                if (!s_is_valid_context(ctx) || font == nullptr || text == nullptr || fontSize == 0 || font->m_font_type != 1)
+                if (!s_is_valid_context(ctx) || font == nullptr || text == nullptr || font->m_font_type != 1)
                     return;
 
                 i32 const glyph_height = (i32)font->m_ascent - (i32)font->m_descent;
@@ -711,8 +715,9 @@ namespace ncore
                 if (!s_get_color(ctx, color))
                     return;
 
-                f32 const scale       = (f32)fontSize / (f32)glyph_height;
-                i32 const line_height = (i32)((f32)(glyph_height + (i32)font->m_line_gap) * scale);
+                u16 const clamped_font_size = fontSize < 9 ? 9 : (fontSize > 255 ? 255 : fontSize);
+                i32 const scale_fixed       = ((i32)clamped_font_size << c_fixed_fraction_bits) / glyph_height;
+                i32 const line_height       = s_scale_metric(glyph_height + (i32)font->m_line_gap, scale_fixed);
                 i32 pen_x             = x;
                 i32 pen_y             = y;
                 while (*text != '\0')
@@ -735,8 +740,9 @@ namespace ncore
                     if (!s_get_glyph(*font, ascii_character, glyph_index, bearing, dimensions, advance, offset))
                         continue;
 
-                    s_draw_glyph_sdf(ctx, *font, *bearing, *dimensions, offset, pen_x, pen_y, color, scale);
-                    pen_x += (i32)((f32)advance * scale);
+                    const u8* glyph_data = font->m_data.data() + offset;
+                    s_draw_glyph_sdf(ctx, glyph_data, *bearing, *dimensions, pen_x, pen_y, color, scale_fixed);
+                    pen_x += s_scale_metric(advance, scale_fixed);
                 }
             }
 
