@@ -517,17 +517,12 @@ namespace ncore
 
             void draw_sprite(ctx_t& ctx, sprite_t* sprite, i32 x, i32 y, i32 width, i32 height)
             {
-                if (sprite == nullptr || sprite->width == 0 || sprite->height == 0 || width <= 0 || height <= 0)
-                    return;
-
                 sprite_context_t sprite_context;
                 if (!s_prepare_sprite(ctx, *sprite, sprite_context))
                     return;
 
-                i64 const destination_x1 = (i64)x + width;
-                i64 const destination_y1 = (i64)y + height;
-                if (destination_x1 > INT_MAX || destination_y1 > INT_MAX)
-                    return;
+                i32 const destination_x1 = x + width;
+                i32 const destination_y1 = y + height;
 
                 i32 draw_x0 = x;
                 i32 draw_y0 = y;
@@ -536,17 +531,17 @@ namespace ncore
                 if (!s_clip_rect(ctx, draw_x0, draw_y0, draw_x1, draw_y1))
                     return;
 
-                i64 const source_step_x = ((i64)sprite->width << 16) / width;
-                i64 const source_step_y = ((i64)sprite->height << 16) / height;
+                i32 const source_step_x = ((i32)sprite->width << 16) / width;
+                i32 const source_step_y = ((i32)sprite->height << 16) / height;
 
 #define SBR_SCALED_LOOP(pixel_operation)                                                                                      \
     {                                                                                                                           \
-        i64 source_y_fixed = (i64)(draw_y0 - y) * source_step_y;                                                              \
+        i32 source_y_fixed = (i32)(draw_y0 - y) * source_step_y;                                                              \
         for (i32 destination_y = draw_y0; destination_y < draw_y1; ++destination_y, source_y_fixed += source_step_y)       \
         {                                                                                                                       \
             i32 const source_y = (i32)(source_y_fixed >> 16);                                                                 \
             u16* destination = s_row(ctx, destination_y) + draw_x0;                                                          \
-            i64 source_x_fixed = (i64)(draw_x0 - x) * source_step_x;                                                         \
+            i32 source_x_fixed = (i32)(draw_x0 - x) * source_step_x;                                                         \
             for (i32 destination_x = draw_x0; destination_x < draw_x1; ++destination_x, ++destination, source_x_fixed += source_step_x) \
             {                                                                                                                   \
                 i32 const source_x = (i32)(source_x_fixed >> 16);                                                             \
@@ -661,25 +656,16 @@ namespace ncore
 
             static void s_draw_glyph_sdf(ctx_t& ctx, font_t const& font, glyph_bearing_t const& bearing, glyph_dimensions_t const& dimensions, u16 offset, i32 pen_x, i32 pen_y, u16 color, f32 scale)
             {
-                if (dimensions.m_w == 0 || dimensions.m_h == 0 || font.m_data.data() == nullptr)
-                    return;
-
-                u64 const source_pixels = (u64)dimensions.m_w * dimensions.m_h;
-                u64 const source_bytes  = (source_pixels + 1) >> 1;
-                if ((u64)offset + source_bytes > font.m_data.m_size)
-                    return;
+                u32 const source_pixels = (u32)dimensions.m_w * dimensions.m_h;
+                u32 const source_bytes  = (source_pixels + 1) >> 1;
 
                 i32 const output_x = pen_x + (i32)((f32)bearing.m_x * scale);
                 i32 const output_y = pen_y - (i32)((f32)bearing.m_y * scale);
                 i32 const output_width  = (i32)((f32)dimensions.m_w * scale);
                 i32 const output_height = (i32)((f32)dimensions.m_h * scale);
-                if (output_width <= 0 || output_height <= 0)
-                    return;
 
-                i64 const output_x1 = (i64)output_x + output_width;
-                i64 const output_y1 = (i64)output_y + output_height;
-                if (output_x1 > INT_MAX || output_y1 > INT_MAX)
-                    return;
+                i32 const output_x1 = output_x + output_width;
+                i32 const output_y1 = output_y + output_height;
 
                 i32 clip_x0 = output_x;
                 i32 clip_y0 = output_y;

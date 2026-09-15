@@ -40,36 +40,36 @@ namespace ncore
             inline char const* str() const { return (char const*)((u8 const*)this + m_offset); }
             inline char const* end() const { return (char const*)((u8 const*)this + m_offset + m_size_in_bytes); }
 
-            i64 m_offset;         // offset from the start of the string_t to the first character
-            u32 m_size_in_bytes;  // number of characters in the string (not including null terminator)
-            u32 m_size_in_runes;  // number of Unicode code points (runes) in the string
+            i32 m_offset;         // offset from the start of the string_t to the first character
+            u16 m_size_in_bytes;  // number of characters in the string (not including null terminator)
+            u16 m_size_in_runes;  // number of Unicode code points (runes) in the string
         };
 
         template <typename K, typename V>
         struct map_t
         {
-            inline u64 size() const { return m_num_entries; }
+            inline u32 size() const { return m_num_entries; }
             inline K*  keys() { return (K*)((u8*)this + m_key_offset); }
             inline V*  values() { return (V*)((u8*)this + m_value_offset); }
             inline K*  key(u32 index) { return (index < m_num_entries) ? &(keys()[index]) : nullptr; }
             inline V*  value(u32 index) { return (index < m_num_entries) ? &(values()[index]) : nullptr; }
 
-            i64 m_key_offset;    // offset from the start of the map_t to the first key
-            i64 m_value_offset;  // offset from the start of the map_t to the first value
-            u64 m_num_entries;   // number of key-value pairs in the map
+            i32 m_key_offset;    // offset from the start of the map_t to the first key
+            i32 m_value_offset;  // offset from the start of the map_t to the first value
+            u32 m_num_entries;   // number of key-value pairs in the map
         };
 
         template <typename T>
         struct array_t
         {
-            inline u64      size() const { return m_size; }
+            inline u32      size() const { return m_size; }
             inline T*       data() { return (T*)((u8*)this + m_offset); }
             inline T const* data() const { return (T const*)((u8 const*)this + m_offset); }
             inline T*       item(u32 index) { return (index < m_size) ? &(data()[index]) : nullptr; }
             inline T const* item(u32 index) const { return (index < m_size) ? &(data()[index]) : nullptr; }
 
-            i64 m_offset;
-            u64 m_size;
+            i32 m_offset;
+            u32 m_size;
         };
 
         struct image_descr_t
