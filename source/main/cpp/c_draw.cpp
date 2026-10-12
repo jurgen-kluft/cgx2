@@ -1072,26 +1072,176 @@ namespace ncore
         // Y88b  d88P Y88b  d88P d8888888888 888      888        888  .d88P      Y88b  d88P 888        888  T88b    888       888     888
         //  "Y8888P"   "Y8888P" d88P     888 88888888 8888888888 8888888P"        "Y8888P"  888        888   T88b 8888888     888     8888888888
 
+        struct scaled_rgb565_source_t
+        {
+            const u16* pixels;
+
+            inline u16 get(u32 index) const { return pixels[index]; }
+        };
+
+        struct scaled_indexed_source_t
+        {
+            const u8*  pixels;
+            const u16* palette;
+
+            inline u16 get(u32 index) const { return palette[pixels[index]]; }
+        };
+
+        struct scaled_solid_source_t
+        {
+            u16 color;
+
+            inline u16 get(u32) const { return color; }
+        };
+
+        template <u8 TAlphaFormat>
+        struct scaled_alpha_t;
+
+        template <>
+        struct scaled_alpha_t<FMT_ALPHA_A0>
+        {
+            static inline void write(u16& dst, u16 src, const u8*, u32) { dst = src; }
+        };
+
+        template <>
+        struct scaled_alpha_t<FMT_ALPHA_A1>
+        {
+            static inline void write(u16& dst, u16 src, const u8* alpha, u32 x)
+            {
+                if (((alpha[x >> 3] >> (7 - (x & 7))) & 1) != 0)
+                    dst = src;
+            }
+        };
+
+        template <>
+        struct scaled_alpha_t<FMT_ALPHA_A2>
+        {
+            static inline void write(u16& dst, u16 src, const u8* alpha, u32 x)
+            {
+                const u8 coverage = (u8)((alpha[x >> 2] >> (6 - ((x & 3) << 1))) & 3);
+                dst               = s_blend_rgb565_a2(dst, src, coverage);
+            }
+        };
+
+        template <>
+        struct scaled_alpha_t<FMT_ALPHA_A4>
+        {
+            static inline void write(u16& dst, u16 src, const u8* alpha, u32 x)
+            {
+                const u8 packed   = alpha[x >> 1];
+                const u8 coverage = (x & 1) == 0 ? (u8)(packed >> 4) : (u8)(packed & 0x0f);
+                dst               = s_blend_rgb565_a4(dst, src, coverage);
+            }
+        };
+
+        template <>
+        struct scaled_alpha_t<FMT_ALPHA_A8>
+        {
+            static inline void write(u16& dst, u16 src, const u8* alpha, u32 x) { dst = s_blend_rgb565_a8(dst, src, alpha[x]); }
+        };
+
+        template <typename TSource, u8 TAlphaFormat>
+        static void s_draw_scaled_sprite(framebuffer_t& fb, sprite_t const& sprite, TSource const& source, const u8* alpha_pixels, u32 alpha_row_stride, i32 x, i32 y, i32 draw_x0, i32 draw_y0, i32 draw_x1, i32 draw_y1, u64 inv_scale_fp)
+        {
+            u16* const fb_pixels = (u16*)fb.pixels;
+            const u32  src_width = sprite.width;
+            const u64  src_x_incr_fp = inv_scale_fp;
+            const u64  src_y_incr_fp = inv_scale_fp;
+            const u64  src_x_start_fp = (u64)((i64)draw_x0 - x) * src_x_incr_fp;
+            u64        src_y_fp       = (u64)((i64)draw_y0 - y) * src_y_incr_fp;
+
+            for (i32 dst_y = draw_y0; dst_y < draw_y1; ++dst_y)
+            {
+                u32 src_y = (u32)(src_y_fp >> 32);
+                if (src_y >= sprite.height)
+                    src_y = sprite.height - 1;
+
+                const u8* alpha_row = alpha_pixels == nullptr ? nullptr : alpha_pixels + src_y * alpha_row_stride;
+                u16*      dst       = fb_pixels + draw_x0 + dst_y * (i32)fb.width;
+                u64       src_x_fp  = src_x_start_fp;
+                for (i32 dst_x = draw_x0; dst_x < draw_x1; ++dst_x, ++dst)
+                {
+                    u32 src_x = (u32)(src_x_fp >> 32);
+                    if (src_x >= src_width)
+                        src_x = src_width - 1;
+
+                    const u32 src_index = src_x + src_y * src_width;
+                    scaled_alpha_t<TAlphaFormat>::write(*dst, source.get(src_index), alpha_row, src_x);
+                    src_x_fp += src_x_incr_fp;
+                }
+                src_y_fp += src_y_incr_fp;
+            }
+        }
+
+        template <typename TSource>
+        static void s_draw_scaled_sprite_by_alpha(framebuffer_t& fb, sprite_t const& sprite, TSource const& source, const u8* alpha_pixels, u32 alpha_row_stride, i32 x, i32 y, i32 draw_x0, i32 draw_y0, i32 draw_x1, i32 draw_y1, u64 inv_scale_fp)
+        {
+            switch (sprite.alpha_format)
+            {
+                case FMT_ALPHA_A0: s_draw_scaled_sprite<TSource, FMT_ALPHA_A0>(fb, sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp); break;
+                case FMT_ALPHA_A1: s_draw_scaled_sprite<TSource, FMT_ALPHA_A1>(fb, sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp); break;
+                case FMT_ALPHA_A2: s_draw_scaled_sprite<TSource, FMT_ALPHA_A2>(fb, sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp); break;
+                case FMT_ALPHA_A4: s_draw_scaled_sprite<TSource, FMT_ALPHA_A4>(fb, sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp); break;
+                case FMT_ALPHA_A8: s_draw_scaled_sprite<TSource, FMT_ALPHA_A8>(fb, sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp); break;
+                default: break;
+            }
+        }
+
         void draw_sprite_with_scale(framebuffer_t& ctx, rect_t const& scissor, sprite_t* sprite, palette_t* palette, i32 x, i32 y, f32 scale, color_t color)
         {
-            u32 const scale_fp = (u32)(scale * 65536.0f);
+            if (sprite == nullptr || ctx.pixels == nullptr || sprite->width == 0 || sprite->height == 0 || scale <= 0.0f || !std::isfinite(scale) || scissor.w <= 0 || scissor.h <= 0)
+                return;
 
-            const i32 dst_width  = (i32)(sprite->width * scale);
-            const i32 dst_height = (i32)(sprite->height * scale);
+            const f64 scaled_width  = (f64)sprite->width * scale;
+            const f64 scaled_height = (f64)sprite->height * scale;
+            if (scaled_width < 1.0 || scaled_height < 1.0)
+                return;
 
-            // todo; clipping
+            const i64 dst_width  = scaled_width > 2147483647.0 ? 2147483647 : (i64)scaled_width;
+            const i64 dst_height = scaled_height > 2147483647.0 ? 2147483647 : (i64)scaled_height;
+            const i64 dst_x1     = (i64)x + dst_width;
+            const i64 dst_y1     = (i64)y + dst_height;
+            const i64 scissor_x1 = (i64)scissor.x + scissor.w;
+            const i64 scissor_y1 = (i64)scissor.y + scissor.h;
 
-            // Example loop:
-            //     for (i32 y_dst = 0; y_dst < dst_height; y_dst++)
-            //     {
-            //         u32 y_src_fp = y_dst * scale_fp;
-            //         u32 y_src    = y_src_fp >> 16;
-            //         for (i32 x_dst = 0; x_dst < dst_width; x_dst++)
-            //         {
-            //             u32 x_src_fp = x_dst * scale_fp;
-            //             u32 x_src    = x_src_fp >> 16;
-            //         }
-            //     }
+            i32 draw_x0 = x > scissor.x ? x : scissor.x;
+            i32 draw_y0 = y > scissor.y ? y : scissor.y;
+            i32 draw_x1 = dst_x1 < scissor_x1 ? (i32)dst_x1 : (i32)scissor_x1;
+            i32 draw_y1 = dst_y1 < scissor_y1 ? (i32)dst_y1 : (i32)scissor_y1;
+            if (draw_x0 < 0)
+                draw_x0 = 0;
+            if (draw_y0 < 0)
+                draw_y0 = 0;
+            if (draw_x1 > ctx.width)
+                draw_x1 = ctx.width;
+            if (draw_y1 > ctx.height)
+                draw_y1 = ctx.height;
+            if (draw_x0 >= draw_x1 || draw_y0 >= draw_y1)
+                return;
+
+            const u64 inv_scale_fp     = (u64)ceil(4294967296.0 / (f64)scale);
+            const u32 alpha_row_stride = ((u32)sprite->width * sprite->alpha_format + 7) >> 3;
+            const u8* alpha_pixels     = sprite->alpha_format == FMT_ALPHA_A0 ? nullptr : sprite->alpha_data.data();
+            if (sprite->alpha_format != FMT_ALPHA_A0 && alpha_pixels == nullptr)
+                return;
+
+            if (sprite->pixel_data.size() == 0)
+            {
+                if (sprite->alpha_format == FMT_ALPHA_A0)
+                    return;
+                const scaled_solid_source_t source = {color};
+                s_draw_scaled_sprite_by_alpha(ctx, *sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp);
+            }
+            else if (sprite->pixel_format == FMT_PIXEL_RGB565)
+            {
+                const scaled_rgb565_source_t source = {(u16 const*)sprite->pixel_data.data()};
+                s_draw_scaled_sprite_by_alpha(ctx, *sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp);
+            }
+            else if (sprite->pixel_format == FMT_PIXEL_I8 && palette != nullptr)
+            {
+                const scaled_indexed_source_t source = {sprite->pixel_data.data(), (u16 const*)palette->data.data()};
+                s_draw_scaled_sprite_by_alpha(ctx, *sprite, source, alpha_pixels, alpha_row_stride, x, y, draw_x0, draw_y0, draw_x1, draw_y1, inv_scale_fp);
+            }
         }
 
         // ============================================================================

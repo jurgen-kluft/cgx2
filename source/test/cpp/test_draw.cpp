@@ -278,6 +278,216 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK(pixels_a8[1] == 0xffff);
         }
 
+        UNITTEST_TEST(sprite_scaled_opaque_mapping_and_clipping)
+        {
+            const ngx2::color_t source[] = {
+                0x1001, 0x1002, 0x1003,
+                0x2001, 0x2002, 0x2003,
+            };
+            ngx2::sprite_t sprite  = {};
+            sprite.width           = 3;
+            sprite.height          = 2;
+            sprite.pixel_format    = ngx2::FMT_PIXEL_RGB565;
+            sprite.alpha_format    = ngx2::FMT_ALPHA_A0;
+            init_bytes(sprite.pixel_data, source, sizeof(source));
+
+            ngx2::color_t       pixels[6 * 4] = {};
+            ngx2::framebuffer_t fb            = {6, 4, pixels};
+            ngx2::rect_t        scissor       = {1, 1, 4, 2};
+            ngx2::draw_sprite_with_scale(fb, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
+
+            const ngx2::color_t expected[] = {
+                0, 0,      0,      0,      0,      0,
+                0, 0x1001, 0x1002, 0x1002, 0x1003, 0,
+                0, 0x2001, 0x2002, 0x2002, 0x2003, 0,
+                0, 0,      0,      0,      0,      0,
+            };
+            for (i32 i = 0; i < 6 * 4; ++i)
+                CHECK_EQUAL(expected[i], pixels[i]);
+
+            const ngx2::color_t downsample_source[] = {
+                0x0101, 0x0202, 0x0303, 0x0404,
+                0x0505, 0x0606, 0x0707, 0x0808,
+            };
+            sprite.width                              = 4;
+            sprite.height                             = 2;
+            init_bytes(sprite.pixel_data, downsample_source, sizeof(downsample_source));
+            ngx2::color_t       downsample_pixels[] = {0, 0, 0};
+            ngx2::framebuffer_t downsample_fb       = {3, 1, downsample_pixels};
+            ngx2::rect_t        downsample_scissor  = {0, 0, 3, 1};
+            ngx2::draw_sprite_with_scale(downsample_fb, downsample_scissor, &sprite, nullptr, 0, 0, 0.5f, 0);
+            CHECK_EQUAL(0x0101, downsample_pixels[0]);
+            CHECK_EQUAL(0x0303, downsample_pixels[1]);
+            CHECK_EQUAL(0, downsample_pixels[2]);
+
+            const ngx2::color_t thirds_source[] = {0x1111, 0x2222};
+            sprite.width                          = 2;
+            sprite.height                         = 1;
+            init_bytes(sprite.pixel_data, thirds_source, sizeof(thirds_source));
+            ngx2::color_t       thirds_pixels[6] = {};
+            ngx2::framebuffer_t thirds_fb        = {6, 1, thirds_pixels};
+            ngx2::rect_t        thirds_scissor   = {0, 0, 6, 1};
+            ngx2::draw_sprite_with_scale(thirds_fb, thirds_scissor, &sprite, nullptr, 0, 0, 3.0f, 0);
+            const ngx2::color_t thirds_expected[] = {0x1111, 0x1111, 0x1111, 0x2222, 0x2222, 0x2222};
+            for (i32 i = 0; i < 6; ++i)
+                CHECK_EQUAL(thirds_expected[i], thirds_pixels[i]);
+        }
+
+        UNITTEST_TEST(sprite_scaled_rgb_alpha_formats)
+        {
+            const ngx2::color_t source[] = {0xffff, 0xffff, 0xffff, 0xffff};
+            ngx2::sprite_t      sprite   = {};
+            sprite.width                 = 4;
+            sprite.height                = 1;
+            sprite.pixel_format          = ngx2::FMT_PIXEL_RGB565;
+            init_bytes(sprite.pixel_data, source, sizeof(source));
+            ngx2::rect_t scissor = {0, 0, 8, 1};
+
+            const u8 alpha_a1[] = {0x50};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.alpha_data, alpha_a1, sizeof(alpha_a1));
+            ngx2::color_t       pixels_a1[8] = {};
+            ngx2::framebuffer_t fb_a1        = {8, 1, pixels_a1};
+            ngx2::draw_sprite_with_scale(fb_a1, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
+            const ngx2::color_t expected_a1[] = {0, 0, 0xffff, 0xffff, 0, 0, 0xffff, 0xffff};
+            for (i32 i = 0; i < 8; ++i)
+                CHECK_EQUAL(expected_a1[i], pixels_a1[i]);
+
+            const u8 alpha_a2[] = {0x1b};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.alpha_data, alpha_a2, sizeof(alpha_a2));
+            ngx2::color_t       pixels_a2[8] = {};
+            ngx2::framebuffer_t fb_a2        = {8, 1, pixels_a2};
+            ngx2::draw_sprite_with_scale(fb_a2, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
+            const ngx2::color_t expected_a2[] = {0, 0, 0x39e7, 0x39e7, 0x7bef, 0x7bef, 0xffff, 0xffff};
+            for (i32 i = 0; i < 8; ++i)
+                CHECK_EQUAL(expected_a2[i], pixels_a2[i]);
+
+            const u8 alpha_a4[] = {0x08, 0xf4};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            ngx2::color_t       pixels_a4[8] = {};
+            ngx2::framebuffer_t fb_a4        = {8, 1, pixels_a4};
+            ngx2::draw_sprite_with_scale(fb_a4, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
+            const ngx2::color_t expected_a4[] = {0, 0, 0x7bef, 0x7bef, 0xffff, 0xffff, 0x39e7, 0x39e7};
+            for (i32 i = 0; i < 8; ++i)
+                CHECK_EQUAL(expected_a4[i], pixels_a4[i]);
+
+            const u8 alpha_a8[] = {0, 128, 255, 0};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A8;
+            init_bytes(sprite.alpha_data, alpha_a8, sizeof(alpha_a8));
+            ngx2::color_t       pixels_a8[8] = {};
+            ngx2::framebuffer_t fb_a8        = {8, 1, pixels_a8};
+            ngx2::draw_sprite_with_scale(fb_a8, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
+            const ngx2::color_t expected_a8[] = {0, 0, 0x7bef, 0x7bef, 0xffff, 0xffff, 0, 0};
+            for (i32 i = 0; i < 8; ++i)
+                CHECK_EQUAL(expected_a8[i], pixels_a8[i]);
+        }
+
+        UNITTEST_TEST(sprite_scaled_indexed_alpha_formats)
+        {
+            const u8            indices[]        = {0, 1};
+            const ngx2::color_t palette_colors[] = {0xffff, 0xf800};
+            ngx2::palette_t     palette           = {ngx2::FMT_PALETTE_RGB565, {}};
+            init_bytes(palette.data, palette_colors, sizeof(palette_colors));
+            ngx2::sprite_t sprite = {};
+            sprite.width          = 2;
+            sprite.height         = 1;
+            sprite.pixel_format   = ngx2::FMT_PIXEL_I8;
+            init_bytes(sprite.pixel_data, indices, sizeof(indices));
+            ngx2::rect_t scissor = {0, 0, 4, 1};
+
+            sprite.alpha_format = ngx2::FMT_ALPHA_A0;
+            ngx2::color_t       pixels_a0[4] = {};
+            ngx2::framebuffer_t fb_a0        = {4, 1, pixels_a0};
+            ngx2::draw_sprite_with_scale(fb_a0, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
+            CHECK_EQUAL(0xffff, pixels_a0[0]);
+            CHECK_EQUAL(0xffff, pixels_a0[1]);
+            CHECK_EQUAL(0xf800, pixels_a0[2]);
+            CHECK_EQUAL(0xf800, pixels_a0[3]);
+
+            const u8 alpha_a1[] = {0x40};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.alpha_data, alpha_a1, sizeof(alpha_a1));
+            ngx2::color_t       pixels_a1[4] = {};
+            ngx2::framebuffer_t fb_a1        = {4, 1, pixels_a1};
+            ngx2::draw_sprite_with_scale(fb_a1, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
+            CHECK_EQUAL(0, pixels_a1[0]);
+            CHECK_EQUAL(0, pixels_a1[1]);
+            CHECK_EQUAL(0xf800, pixels_a1[2]);
+            CHECK_EQUAL(0xf800, pixels_a1[3]);
+
+            const u8 alpha_a2[] = {0x70};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.alpha_data, alpha_a2, sizeof(alpha_a2));
+            ngx2::color_t       pixels_a2[4] = {};
+            ngx2::framebuffer_t fb_a2        = {4, 1, pixels_a2};
+            ngx2::draw_sprite_with_scale(fb_a2, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
+            CHECK_EQUAL(0x39e7, pixels_a2[0]);
+            CHECK_EQUAL(0x39e7, pixels_a2[1]);
+            CHECK_EQUAL(0xf800, pixels_a2[2]);
+            CHECK_EQUAL(0xf800, pixels_a2[3]);
+
+            const u8 alpha_a4[] = {0x8f};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            ngx2::color_t       pixels_a4[4] = {};
+            ngx2::framebuffer_t fb_a4        = {4, 1, pixels_a4};
+            ngx2::draw_sprite_with_scale(fb_a4, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
+            CHECK_EQUAL(0x7bef, pixels_a4[0]);
+            CHECK_EQUAL(0x7bef, pixels_a4[1]);
+            CHECK_EQUAL(0xf800, pixels_a4[2]);
+            CHECK_EQUAL(0xf800, pixels_a4[3]);
+
+            const u8 alpha_a8[] = {128, 255};
+            sprite.alpha_format = ngx2::FMT_ALPHA_A8;
+            init_bytes(sprite.alpha_data, alpha_a8, sizeof(alpha_a8));
+            ngx2::color_t       pixels_a8[4] = {};
+            ngx2::framebuffer_t fb_a8        = {4, 1, pixels_a8};
+            ngx2::draw_sprite_with_scale(fb_a8, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
+            CHECK_EQUAL(0x7bef, pixels_a8[0]);
+            CHECK_EQUAL(0x7bef, pixels_a8[1]);
+            CHECK_EQUAL(0xf800, pixels_a8[2]);
+            CHECK_EQUAL(0xf800, pixels_a8[3]);
+        }
+
+        UNITTEST_TEST(sprite_scaled_alpha_only_and_guards)
+        {
+            const u8       alpha[] = {0x40};
+            ngx2::sprite_t sprite  = {};
+            sprite.width           = 2;
+            sprite.height          = 1;
+            sprite.alpha_format    = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.alpha_data, alpha, sizeof(alpha));
+
+            ngx2::color_t       pixels[] = {0x001f, 0x001f, 0x001f, 0x001f};
+            ngx2::framebuffer_t fb       = {4, 1, pixels};
+            ngx2::rect_t        scissor  = {0, 0, 4, 1};
+            ngx2::draw_sprite_with_scale(fb, scissor, &sprite, nullptr, 0, 0, 2.0f, 0x07e0);
+            CHECK_EQUAL(0x001f, pixels[0]);
+            CHECK_EQUAL(0x001f, pixels[1]);
+            CHECK_EQUAL(0x07e0, pixels[2]);
+            CHECK_EQUAL(0x07e0, pixels[3]);
+
+            ngx2::draw_sprite_with_scale(fb, scissor, nullptr, nullptr, 0, 0, 2.0f, 0xffff);
+            ngx2::draw_sprite_with_scale(fb, scissor, &sprite, nullptr, 0, 0, 0.0f, 0xffff);
+            ngx2::draw_sprite_with_scale(fb, scissor, &sprite, nullptr, 0, 0, 0.1f, 0xffff);
+            CHECK_EQUAL(0x001f, pixels[0]);
+            CHECK_EQUAL(0x001f, pixels[1]);
+            CHECK_EQUAL(0x07e0, pixels[2]);
+            CHECK_EQUAL(0x07e0, pixels[3]);
+
+            const u8 indices[] = {0, 0};
+            sprite.pixel_format = ngx2::FMT_PIXEL_I8;
+            sprite.alpha_format = ngx2::FMT_ALPHA_A0;
+            init_bytes(sprite.pixel_data, indices, sizeof(indices));
+            ngx2::draw_sprite_with_scale(fb, scissor, &sprite, nullptr, 0, 0, 2.0f, 0xffff);
+            CHECK_EQUAL(0x001f, pixels[0]);
+            CHECK_EQUAL(0x001f, pixels[1]);
+            CHECK_EQUAL(0x07e0, pixels[2]);
+            CHECK_EQUAL(0x07e0, pixels[3]);
+        }
+
         UNITTEST_TEST(text_metrics_and_sdf)
         {
             const u8                 sdf[]       = {0x18, 0xf0, 0xf0};
