@@ -21,14 +21,16 @@ namespace ncore
             struct ctx_t
             {
                 // Slice parameters
-                u16* pixels;   // pixel data (pixel data of where the slice starts in the framebuffer)
-                u16  width;    // width in pixels
-                u16  height;   // height in pixels
-                u16  offseth;  // height offset in pixels (number of lines from the top of the framebuffer to the start of the slice)
+                u16* m_pixels;   // pixel data (pixel data of where the slice starts in the framebuffer)
+                u16  m_width;    // width in pixels
+                u16  m_height;   // height in pixels
+                u16  m_offseth;  // height offset in pixels (number of lines from the top of the framebuffer to the start of the slice)
                 // Parameters for drawing operations
-                u8         color;     // current drawing color as index into palette
-                u8         fill : 1;  // fill mode (0 = outline, 1 = filled)
-                palette_t* palette;   // palette for indexed color
+                u32             m_color;         // current drawing color
+                u8              m_fill;          // fill mode (0 = outline, 1 = filled)
+                sprite_pack_t*  m_sprite_pack;   // sprite pack for drawing sprites
+                palette_pack_t* m_palette_pack;  // palette pack for palette-based sprites
+                font_pack_t*    m_font_pack;     // font pack for drawing text
             };
 
             void draw_hline(ctx_t& ctx, i32 x0, i32 x1, i32 y);
@@ -40,10 +42,10 @@ namespace ncore
             void draw_hdline(ctx_t& ctx, i32 x0, i32 x1, i32 y, u16 dash1, u16 dash2);
             void draw_vdline(ctx_t& ctx, i32 x, i32 y0, i32 y1, u16 dash1, u16 dash2);
 
-            void draw_sprite(ctx_t& ctx, sprite_t* sprite, i32 x, i32 y);
-            void draw_sprite(ctx_t& ctx, sprite_t* sprite, i32 x, i32 y, i32 w, i32 h);
+            void draw_sprite(ctx_t& ctx, u32 sprite_index, i32 x, i32 y);
+            void draw_sprite(ctx_t& ctx, u32 sprite_index, i32 x, i32 y, i32 w, i32 h);
 
-            void draw_text(ctx_t& ctx, font_t* font, u16 fontSize, i32 x, i32 y, const char* text);
+            void draw_text(ctx_t& ctx, u32 font_index, u16 fontSize, i32 x, i32 y, const char* text);
         }  // namespace nsbr
 
     }  // namespace ngx2

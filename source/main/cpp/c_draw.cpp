@@ -1090,7 +1090,6 @@ namespace ncore
         struct scaled_solid_source_t
         {
             u16 color;
-
             inline u16 get(u32) const { return color; }
         };
 

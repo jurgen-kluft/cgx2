@@ -34,6 +34,7 @@ namespace ncore
             FMT_PALETTE_RGB565   = 0x02   // RGB565 (16-bit)
         };
 
+
         struct string_t
         {
             inline u32         size() const { return m_size_in_runes; }
@@ -131,6 +132,22 @@ namespace ncore
             array_t<palette_t> palettes;   // <palette_t>, array of palettes
         };
 
+        inline const palette_t* get_palette(const palette_pack_t* palette_pack, u32 index)
+        {
+            if (index < palette_pack->palettes.m_size)
+                return palette_pack->palettes.item(index);
+            return nullptr;
+        }
+
+        const palette_t* get_palette(const palette_pack_t* palette_pack, sprite_t const* sprite)
+        {
+            switch (sprite->pixel_format)
+            {
+                case FMT_PIXEL_I8: return get_palette(palette_pack, sprite->palette_index);
+            }
+            return nullptr;
+        }
+
         struct glyph_bearing_t
         {
             i8 m_x;  // horizontal distance from the pen position to the left edge of the glyph bitmap
@@ -171,9 +188,7 @@ namespace ncore
         }
 
         struct rect_t
-        {
-            i16 x, y, w, h;
-        };
+        { i16 x, y, w, h; };
 
         inline bool is_y_in_rect(i32 y, rect_t const& r) { return (y >= r.y && y < r.y + r.h); }
         inline bool is_x_in_rect(i32 x, rect_t const& r) { return (x >= r.x && x < r.x + r.w); }
