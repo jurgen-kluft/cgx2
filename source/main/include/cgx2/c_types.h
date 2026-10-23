@@ -34,7 +34,6 @@ namespace ncore
             FMT_PALETTE_RGB565   = 0x02   // RGB565 (16-bit)
         };
 
-
         struct string_t
         {
             inline u32         size() const { return m_size_in_runes; }
@@ -75,36 +74,36 @@ namespace ncore
 
         struct image_descr_t
         {
-            u16            width;     // width in pixels
-            u16            height;    // height in pixels
-            u16            reserved;  // reserved for future use (0)
-            image_format_t format;    // pixel format
+            u16            m_width;     // width in pixels
+            u16            m_height;    // height in pixels
+            u16            m_reserved;  // reserved for future use (0)
+            image_format_t m_format;    // pixel format
         };
 
         struct image_t
         {
-            image_descr_t descr;   // image description (width, height, format)
-            void*         pixels;  // pixel data
+            image_descr_t m_descr;   // image description (width, height, format)
+            void*         m_pixels;  // pixel data
         };
 
         // Framebuffer is RGB565 format, 16-bit per pixel, no alpha channel
         struct framebuffer_t
         {
-            u16      width;   // width in pixels
-            u16      height;  // height in pixels
-            color_t* pixels;  // pixel data
+            u16      m_width;   // width in pixels
+            u16      m_height;  // height in pixels
+            color_t* m_pixels;  // pixel data
         };
 
         struct sprite_t
         {
-            u16           width;          //
-            u16           height;         //
-            u8            pixel_format;   // image_format_t
-            u8            alpha_format;   // alpha_format_t; packed samples are stored most-significant bits first
-            u8            palette_index;  //
-            u8            reserved;       //
-            array_t<byte> pixel_data;     //
-            array_t<byte> alpha_data;     // packed alpha map; each row starts on a byte boundary
+            u16           m_width;          //
+            u16           m_height;         //
+            u8            m_pixel_format;   // image_format_t
+            u8            m_alpha_format;   // alpha_format_t; packed samples are stored most-significant bits first
+            u8            m_palette_index;  //
+            u8            m_reserved;       //
+            array_t<byte> m_pixel_data;     //
+            array_t<byte> m_alpha_data;     // packed alpha map; each row starts on a byte boundary
         };
 
         struct sprite_pack_t
@@ -122,28 +121,28 @@ namespace ncore
 
         struct palette_t
         {
-            u32           format;  // image_format_t
-            array_t<byte> data;    // array of RGB565 colors
+            u32           m_format;  // image_format_t
+            array_t<byte> m_data;    // array of RGB565 colors
         };
 
         struct palette_pack_t
         {
-            u32                m_version;  // version of the palette pack format
-            array_t<palette_t> palettes;   // <palette_t>, array of palettes
+            u32                m_version;   // version of the palette pack format
+            array_t<palette_t> m_palettes;  // <palette_t>, array of palettes
         };
 
         inline const palette_t* get_palette(const palette_pack_t* palette_pack, u32 index)
         {
-            if (index < palette_pack->palettes.m_size)
-                return palette_pack->palettes.item(index);
+            if (index < palette_pack->m_palettes.m_size)
+                return palette_pack->m_palettes.item(index);
             return nullptr;
         }
 
         const palette_t* get_palette(const palette_pack_t* palette_pack, sprite_t const* sprite)
         {
-            switch (sprite->pixel_format)
+            switch (sprite->m_pixel_format)
             {
-                case FMT_PIXEL_I8: return get_palette(palette_pack, sprite->palette_index);
+                case FMT_PIXEL_I8: return get_palette(palette_pack, sprite->m_palette_index);
             }
             return nullptr;
         }
@@ -224,14 +223,14 @@ namespace ncore
         inline image_descr_t init_image_descr(u16 width, u16 height, image_format_t format)
         {
             image_descr_t descr;
-            descr.width    = width;
-            descr.height   = height;
-            descr.reserved = 0;
-            descr.format   = format;
+            descr.m_width    = width;
+            descr.m_height   = height;
+            descr.m_reserved = 0;
+            descr.m_format   = format;
             return descr;
         }
 
-        inline u32 bytes_per_image(image_descr_t const& descr) { return descr.height * descr.width * bytes_per_pixel(descr.format); }
+        inline u32 bytes_per_image(image_descr_t const& descr) { return descr.m_height * descr.m_width * bytes_per_pixel(descr.m_format); }
 
     }  // namespace ngx2
 }  // namespace ncore

@@ -3,6 +3,7 @@
 #include "ccore/c_memory.h"
 
 #include "cgx2/c_slice_based_renderer.h"
+#include "cgx2/c_color.h"
 #include "cgx2/c_types.h"
 
 #include <cmath>
@@ -86,14 +87,6 @@ namespace ncore
                 return x0 < x1 && y0 < y1;
             }
 
-            static inline u16 s_rgb888_to_rgb565(u32 color)
-            {
-                const u32 r = (color >> 16) & 0xFF;
-                const u32 g = (color >> 8) & 0xFF;
-                const u32 b = color & 0xFF;
-                return (u16)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
-            }
-
             static inline u16 s_blend_rgb565_a2(u16 background, u16 foreground, u8 coverage)
             {
                 if (coverage == 0)
@@ -156,7 +149,7 @@ namespace ncore
             {
                 if (!s_clip_vspan(ctx, x, y0, y1))
                     return;
-                const u16 color = s_rgb888_to_rgb565(ctx.m_color);
+                const u16 color = rgb888_to_rgb565(ctx.m_color);
                 s_vspan(ctx, x, y0, y1, color);
             }
 
@@ -171,7 +164,7 @@ namespace ncore
             {
                 if (!s_clip_hspan(ctx, x0, x1, y))
                     return;
-                const u16 color = s_rgb888_to_rgb565(ctx.m_color);
+                const u16 color = rgb888_to_rgb565(ctx.m_color);
                 s_hspan(ctx, x0, x1, y, color);
             }
 
@@ -191,7 +184,7 @@ namespace ncore
                 if (period == 0)
                     period = 1;
 
-                const u16 color = s_rgb888_to_rgb565(ctx.m_color);
+                const u16 color = rgb888_to_rgb565(ctx.m_color);
 
                 u16* pixels = s_row(ctx, y);
                 for (i32 x = x0; x <= x1; ++x)
@@ -217,7 +210,7 @@ namespace ncore
                 if (period == 0)
                     period = 1;
 
-                const u16 color = s_rgb888_to_rgb565(ctx.m_color);
+                const u16 color = rgb888_to_rgb565(ctx.m_color);
 
                 for (i32 y = y0; y <= y1; ++y)
                 {
@@ -228,32 +221,32 @@ namespace ncore
 
             static u16* s_get_rgb565_pixels(sprite_t const* sprite)
             {
-                if (sprite->pixel_format != FMT_PIXEL_RGB565 || sprite->pixel_data.m_size == 0 || sprite->pixel_data.data() == nullptr)
+                if (sprite->m_pixel_format != FMT_PIXEL_RGB565 || sprite->m_pixel_data.m_size == 0 || sprite->m_pixel_data.data() == nullptr)
                     return nullptr;
-                return (u16*)sprite->pixel_data.data();
+                return (u16*)sprite->m_pixel_data.data();
             }
 
             static u8* s_get_i8_pixels(sprite_t const* sprite)
             {
-                if (sprite->pixel_format != FMT_PIXEL_I8 || sprite->pixel_data.m_size == 0 || sprite->pixel_data.data() == nullptr)
+                if (sprite->m_pixel_format != FMT_PIXEL_I8 || sprite->m_pixel_data.m_size == 0 || sprite->m_pixel_data.data() == nullptr)
                     return nullptr;
-                return (u8*)sprite->pixel_data.data();
+                return (u8*)sprite->m_pixel_data.data();
             }
 
             static u8* s_get_alpha_data(sprite_t const* sprite, u32& alpha_row_stride)
             {
-                if (sprite->alpha_data.m_size == 0 || sprite->alpha_data.data() == nullptr)
+                if (sprite->m_alpha_data.m_size == 0 || sprite->m_alpha_data.data() == nullptr)
                     return nullptr;
-                alpha_row_stride = sprite->width;
-                return (u8*)sprite->alpha_data.data();
+                alpha_row_stride = sprite->m_width;
+                return (u8*)sprite->m_alpha_data.data();
             }
 
             static u16* s_get_palette(sprite_t const* sprite, palette_pack_t const* palette_pack)
             {
-                const palette_t* palette = get_palette(palette_pack, sprite->palette_index);
-                if (palette == nullptr || palette->data.m_size == 0 || palette->data.data() == nullptr)
+                const palette_t* palette = get_palette(palette_pack, sprite->m_palette_index);
+                if (palette == nullptr || palette->m_data.m_size == 0 || palette->m_data.data() == nullptr)
                     return nullptr;
-                return (u16*)palette->data.data();
+                return (u16*)palette->m_data.data();
             }
 
             void draw_sprite(ctx_t& ctx, u32 sprite_index, i32 x, i32 y)
@@ -264,8 +257,8 @@ namespace ncore
 
                 i32 draw_x0 = x;
                 i32 draw_y0 = y;
-                i32 draw_x1 = x + (i32)sprite->width;
-                i32 draw_y1 = y + (i32)sprite->height;
+                i32 draw_x1 = x + (i32)sprite->m_width;
+                i32 draw_y1 = y + (i32)sprite->m_height;
                 if (!s_clip_rect(ctx, draw_x0, draw_y0, draw_x1, draw_y1))
                     return;
 
@@ -282,12 +275,12 @@ namespace ncore
                     const u8* alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
                     if (alpha_pixels != nullptr)
                     {
-                        switch (sprite->alpha_format)
+                        switch (sprite->m_alpha_format)
                         {
                             case FMT_ALPHA_A0:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u16*       destination = s_row(ctx, draw_y0 + row) + draw_x0;
                                     for (i32 column = 0; column < span_width; ++column)
                                         *destination++ = *source++;
@@ -296,7 +289,7 @@ namespace ncore
                             case FMT_ALPHA_A1:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const*  alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + (source_x0 >> 3);
                                     i32        shift       = 7 - (source_x0 & 7);
                                     u16*       destination = s_row(ctx, draw_y0 + row) + draw_x0;
@@ -319,7 +312,7 @@ namespace ncore
                             case FMT_ALPHA_A2:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const*  alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + (source_x0 >> 2);
                                     i32        shift       = 6 - ((source_x0 & 3) << 1);
                                     u16*       destination = s_row(ctx, draw_y0 + row) + draw_x0;
@@ -341,7 +334,7 @@ namespace ncore
                             case FMT_ALPHA_A4:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const*  alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + (source_x0 >> 1);
                                     bool       high        = (source_x0 & 1) == 0;
                                     u16*       destination = s_row(ctx, draw_y0 + row) + draw_x0;
@@ -357,7 +350,7 @@ namespace ncore
                             case FMT_ALPHA_A8:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u16 const* source      = rgb565_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const*  alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + source_x0;
                                     u16*       destination = s_row(ctx, draw_y0 + row) + draw_x0;
                                     for (i32 column = 0; column < span_width; ++column, ++source, ++alpha, ++destination)
@@ -375,12 +368,12 @@ namespace ncore
                     const u16* palette          = s_get_palette(sprite, ctx.m_palette_pack);
                     if (alpha_pixels != nullptr && palette != nullptr)
                     {
-                        switch (sprite->alpha_format)
+                        switch (sprite->m_alpha_format)
                         {
                             case FMT_ALPHA_A0:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u16*      destination = s_row(ctx, draw_y0 + row) + draw_x0;
                                     for (i32 column = 0; column < span_width; ++column)
                                         *destination++ = palette[*source++];
@@ -389,7 +382,7 @@ namespace ncore
                             case FMT_ALPHA_A1:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const* alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + (source_x0 >> 3);
                                     i32       shift       = 7 - (source_x0 & 7);
                                     u16*      destination = s_row(ctx, draw_y0 + row) + draw_x0;
@@ -412,7 +405,7 @@ namespace ncore
                             case FMT_ALPHA_A2:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const* alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + (source_x0 >> 2);
                                     i32       shift       = 6 - ((source_x0 & 3) << 1);
                                     u16*      destination = s_row(ctx, draw_y0 + row) + draw_x0;
@@ -434,7 +427,7 @@ namespace ncore
                             case FMT_ALPHA_A4:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const* alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + (source_x0 >> 1);
                                     bool      high        = (source_x0 & 1) == 0;
                                     u16*      destination = s_row(ctx, draw_y0 + row) + draw_x0;
@@ -450,7 +443,7 @@ namespace ncore
                             case FMT_ALPHA_A8:
                                 for (i32 row = 0; row < span_height; ++row)
                                 {
-                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->width + source_x0;
+                                    u8 const* source      = i8_pixels + (source_y0 + row) * sprite->m_width + source_x0;
                                     u8 const* alpha       = alpha_pixels + (source_y0 + row) * alpha_row_stride + source_x0;
                                     u16*      destination = s_row(ctx, draw_y0 + row) + draw_x0;
                                     for (i32 column = 0; column < span_width; ++column, ++source, ++alpha, ++destination)
@@ -467,8 +460,8 @@ namespace ncore
                     const u8* alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
                     if (alpha_pixels != nullptr)
                     {
-                        const u16 solid_color = s_rgb888_to_rgb565(ctx.m_color);
-                        switch (sprite->alpha_format)
+                        const u16 solid_color = rgb888_to_rgb565(ctx.m_color);
+                        switch (sprite->m_alpha_format)
                         {
                             case FMT_ALPHA_A1:
                                 for (i32 row = 0; row < span_height; ++row)
@@ -557,8 +550,8 @@ namespace ncore
                 if (!s_clip_rect(ctx, draw_x0, draw_y0, draw_x1, draw_y1))
                     return;
 
-                i32 const source_step_x = ((i32)sprite->width << 16) / width;
-                i32 const source_step_y = ((i32)sprite->height << 16) / height;
+                i32 const source_step_x = ((i32)sprite->m_width << 16) / width;
+                i32 const source_step_y = ((i32)sprite->m_height << 16) / height;
 
 #define SBR_SCALED_LOOP(pixel_operation)                                                                                                \
     {                                                                                                                                   \
@@ -583,21 +576,21 @@ namespace ncore
                     const u8* alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
                     if (alpha_pixels != nullptr)
                     {
-                        switch (sprite->alpha_format)
+                        switch (sprite->m_alpha_format)
                         {
-                            case FMT_ALPHA_A0: SBR_SCALED_LOOP(*destination = rgb565_pixels[source_y * sprite->width + source_x];) break;
+                            case FMT_ALPHA_A0: SBR_SCALED_LOOP(*destination = rgb565_pixels[source_y * sprite->m_width + source_x];) break;
                             case FMT_ALPHA_A1:
-                                SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 3)]; if (((alpha >> (7 - (source_x & 7))) & 1) != 0)* destination = rgb565_pixels[source_y * sprite->width + source_x];)
+                                SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 3)]; if (((alpha >> (7 - (source_x & 7))) & 1) != 0)* destination = rgb565_pixels[source_y * sprite->m_width + source_x];)
                                 break;
                             case FMT_ALPHA_A2:
                                 SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 2)];
-                                                *destination   = s_blend_rgb565_a2(*destination, rgb565_pixels[source_y * sprite->width + source_x], (u8)((alpha >> (6 - ((source_x & 3) << 1))) & 3));)
+                                                *destination   = s_blend_rgb565_a2(*destination, rgb565_pixels[source_y * sprite->m_width + source_x], (u8)((alpha >> (6 - ((source_x & 3) << 1))) & 3));)
                                 break;
                             case FMT_ALPHA_A4:
                                 SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 1)];
-                                                *destination   = s_blend_rgb565_a4(*destination, rgb565_pixels[source_y * sprite->width + source_x], (source_x & 1) == 0 ? (u8)(alpha >> 4) : (u8)(alpha & 0x0F));)
+                                                *destination   = s_blend_rgb565_a4(*destination, rgb565_pixels[source_y * sprite->m_width + source_x], (source_x & 1) == 0 ? (u8)(alpha >> 4) : (u8)(alpha & 0x0F));)
                                 break;
-                            case FMT_ALPHA_A8: SBR_SCALED_LOOP(*destination = s_blend_rgb565_a8(*destination, rgb565_pixels[source_y * sprite->width + source_x], alpha_pixels[source_y * alpha_row_stride + source_x]);) break;
+                            case FMT_ALPHA_A8: SBR_SCALED_LOOP(*destination = s_blend_rgb565_a8(*destination, rgb565_pixels[source_y * sprite->m_width + source_x], alpha_pixels[source_y * alpha_row_stride + source_x]);) break;
                             default: break;
                         }
                     }
@@ -610,21 +603,21 @@ namespace ncore
                     const u16* palette          = s_get_palette(sprite, ctx.m_palette_pack);
                     if (i8_pixels != nullptr && alpha_pixels != nullptr && palette != nullptr)
                     {
-                        switch (sprite->alpha_format)
+                        switch (sprite->m_alpha_format)
                         {
-                            case FMT_ALPHA_A0: SBR_SCALED_LOOP(*destination = palette[i8_pixels[source_y * sprite->width + source_x]];) break;
+                            case FMT_ALPHA_A0: SBR_SCALED_LOOP(*destination = palette[i8_pixels[source_y * sprite->m_width + source_x]];) break;
                             case FMT_ALPHA_A1:
-                                SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 3)]; if (((alpha >> (7 - (source_x & 7))) & 1) != 0)* destination = palette[i8_pixels[source_y * sprite->width + source_x]];)
+                                SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 3)]; if (((alpha >> (7 - (source_x & 7))) & 1) != 0)* destination = palette[i8_pixels[source_y * sprite->m_width + source_x]];)
                                 break;
                             case FMT_ALPHA_A2:
                                 SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 2)];
-                                                *destination   = s_blend_rgb565_a2(*destination, palette[i8_pixels[source_y * sprite->width + source_x]], (u8)((alpha >> (6 - ((source_x & 3) << 1))) & 3));)
+                                                *destination   = s_blend_rgb565_a2(*destination, palette[i8_pixels[source_y * sprite->m_width + source_x]], (u8)((alpha >> (6 - ((source_x & 3) << 1))) & 3));)
                                 break;
                             case FMT_ALPHA_A4:
                                 SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 1)];
-                                                *destination   = s_blend_rgb565_a4(*destination, palette[i8_pixels[source_y * sprite->width + source_x]], (source_x & 1) == 0 ? (u8)(alpha >> 4) : (u8)(alpha & 0x0F));)
+                                                *destination   = s_blend_rgb565_a4(*destination, palette[i8_pixels[source_y * sprite->m_width + source_x]], (source_x & 1) == 0 ? (u8)(alpha >> 4) : (u8)(alpha & 0x0F));)
                                 break;
-                            case FMT_ALPHA_A8: SBR_SCALED_LOOP(*destination = s_blend_rgb565_a8(*destination, palette[i8_pixels[source_y * sprite->width + source_x]], alpha_pixels[source_y * alpha_row_stride + source_x]);) break;
+                            case FMT_ALPHA_A8: SBR_SCALED_LOOP(*destination = s_blend_rgb565_a8(*destination, palette[i8_pixels[source_y * sprite->m_width + source_x]], alpha_pixels[source_y * alpha_row_stride + source_x]);) break;
                             default: break;
                         }
                     }
@@ -634,8 +627,8 @@ namespace ncore
                         const u8* alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
                         if (alpha_pixels != nullptr)
                         {
-                            const u16 solid_color = s_rgb888_to_rgb565(ctx.m_color);
-                            switch (sprite->alpha_format)
+                            const u16 solid_color = rgb888_to_rgb565(ctx.m_color);
+                            switch (sprite->m_alpha_format)
                             {
                                 case FMT_ALPHA_A1: SBR_SCALED_LOOP(u8 const alpha = alpha_pixels[source_y * alpha_row_stride + (source_x >> 3)]; if (((alpha >> (7 - (source_x & 7))) & 1) != 0)* destination = solid_color;) break;
                                 case FMT_ALPHA_A2:
@@ -724,7 +717,7 @@ namespace ncore
                 if (glyph_height <= 0)
                     return;
 
-                const u16 color = s_rgb888_to_rgb565(ctx.m_color);
+                const u16 color = rgb888_to_rgb565(ctx.m_color);
 
                 u16 const clamped_font_size = fontSize < 9 ? 9 : (fontSize > 255 ? 255 : fontSize);
                 i32 const scale_fixed       = ((i32)clamped_font_size << c_fixed_fraction_bits) / glyph_height;

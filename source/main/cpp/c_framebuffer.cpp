@@ -14,22 +14,19 @@ namespace ncore
         // Framebuffer
         // ============================================================================
 
-        inline color_t* rgba8888(void* pixels) { return static_cast<color_t*>(pixels); }  // RGBA8888 pixel buffer
-        inline u16*     rgb565(void* pixels) { return static_cast<u16*>(pixels); }        // RGB565 pixel buffer
-
         void init_framebuffer(framebuffer_t& fb, image_descr_t const& descr, void* pixels)
         {
-            fb.width  = descr.width;
-            fb.height = descr.height;
-            fb.pixels = rgb565(pixels);
+            fb.m_width  = descr.m_width;
+            fb.m_height = descr.m_height;
+            fb.m_pixels = (u16*)(pixels);
         }
 
         void clear_full_framebuffer(framebuffer_t& fb, color_t color)
         {
-            if (fb.pixels && fb.width && fb.height) // Assuming RGB565
+            if (fb.m_pixels && fb.m_width && fb.m_height) // Assuming RGB565
             {
-                const u32 pixel_count = (u32)fb.width * (u32)fb.height;
-                u16*      pixels      = rgb565(fb.pixels);
+                const u32 pixel_count = (u32)fb.m_width * (u32)fb.m_height;
+                u16*      pixels      = fb.m_pixels;
                 for (u32 i = 0; i < pixel_count; ++i)
                     pixels[i] = color;
             }

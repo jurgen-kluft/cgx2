@@ -3,7 +3,6 @@
 #include "ccore/c_memory.h"
 
 #include "cgx2/c_effects.h"
-#include "cgx2/c_types.h"
 
 #include <cmath>
 
