@@ -42,6 +42,9 @@ namespace ncore
             void draw_hdline(ctx_t& ctx, i32 x0, i32 x1, i32 y, u16 dash1, u16 dash2);
             void draw_vdline(ctx_t& ctx, i32 x, i32 y0, i32 y1, u16 dash1, u16 dash2);
 
+            void draw_sprite(ctx_t& ctx, const sprite_t* sprite, i32 x, i32 y);
+            void draw_sprite(ctx_t& ctx, const sprite_t* sprite, i32 x, i32 y, i32 w, i32 h);
+
             void draw_sprite(ctx_t& ctx, u32 sprite_index, i32 x, i32 y);
             void draw_sprite(ctx_t& ctx, u32 sprite_index, i32 x, i32 y, i32 w, i32 h);
 

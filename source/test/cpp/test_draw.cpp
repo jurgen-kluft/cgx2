@@ -28,7 +28,7 @@ namespace
         init_array(font.m_glyphs_dimensions, dimensions, glyph_count);
         init_array(font.m_offsets, offsets, glyph_count);
         init_array(font.m_map, glyph_map, 128);
-        font.m_font_type = 1;
+        font.m_size = 16;
     }
 }
 
@@ -66,11 +66,11 @@ UNITTEST_SUITE_BEGIN(gx2)
         {
             const ngx2::color_t rgb_pixels[] = {0xf800, 0x07e0};
             ngx2::sprite_t      rgb_sprite   = {};
-            rgb_sprite.width                 = 2;
-            rgb_sprite.height                = 1;
-            rgb_sprite.pixel_format          = ngx2::FMT_PIXEL_RGB565;
-            rgb_sprite.alpha_format          = ngx2::FMT_ALPHA_A0;
-            init_bytes(rgb_sprite.pixel_data, rgb_pixels, sizeof(rgb_pixels));
+            rgb_sprite.m_width                 = 2;
+            rgb_sprite.m_height                = 1;
+            rgb_sprite.m_pixel_format          = ngx2::FMT_PIXEL_RGB565;
+            rgb_sprite.m_alpha_format          = ngx2::FMT_ALPHA_A0;
+            init_bytes(rgb_sprite.m_pixel_data, rgb_pixels, sizeof(rgb_pixels));
 
             ngx2::color_t       framebuffer_pixels[] = {0x001f, 0x001f};
             ngx2::framebuffer_t fb                   = {2, 1, framebuffer_pixels};
@@ -82,13 +82,13 @@ UNITTEST_SUITE_BEGIN(gx2)
             const u8            indices[]        = {1, 0};
             const ngx2::color_t palette_colors[] = {0xf800, 0x07e0};
             ngx2::sprite_t      indexed_sprite   = {};
-            indexed_sprite.width                 = 2;
-            indexed_sprite.height                = 1;
-            indexed_sprite.pixel_format          = ngx2::FMT_PIXEL_I8;
-            indexed_sprite.alpha_format          = ngx2::FMT_ALPHA_A0;
-            init_bytes(indexed_sprite.pixel_data, indices, sizeof(indices));
+            indexed_sprite.m_width                 = 2;
+            indexed_sprite.m_height                = 1;
+            indexed_sprite.m_pixel_format          = ngx2::FMT_PIXEL_I8;
+            indexed_sprite.m_alpha_format          = ngx2::FMT_ALPHA_A0;
+            init_bytes(indexed_sprite.m_pixel_data, indices, sizeof(indices));
             ngx2::palette_t palette = {ngx2::FMT_PALETTE_RGB565, {}};
-            init_bytes(palette.data, palette_colors, sizeof(palette_colors));
+            init_bytes(palette.m_data, palette_colors, sizeof(palette_colors));
 
             ngx2::draw_sprite(fb, scissor, &indexed_sprite, &palette, 0, 0, 0x07e0);
             CHECK_EQUAL(0x07e0, framebuffer_pixels[0]);
@@ -106,12 +106,12 @@ UNITTEST_SUITE_BEGIN(gx2)
             const ngx2::color_t source[] = {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff};
             const u8            alpha[]  = {0xa0, 0x40};
             ngx2::sprite_t      sprite   = {};
-            sprite.width                 = 3;
-            sprite.height                = 2;
-            sprite.pixel_format          = ngx2::FMT_PIXEL_RGB565;
-            sprite.alpha_format          = ngx2::FMT_ALPHA_A1;
-            init_bytes(sprite.pixel_data, source, sizeof(source));
-            init_bytes(sprite.alpha_data, alpha, sizeof(alpha));
+            sprite.m_width                 = 3;
+            sprite.m_height                = 2;
+            sprite.m_pixel_format          = ngx2::FMT_PIXEL_RGB565;
+            sprite.m_alpha_format          = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.m_pixel_data, source, sizeof(source));
+            init_bytes(sprite.m_alpha_data, alpha, sizeof(alpha));
 
             ngx2::color_t       pixels[] = {0x0000, 0x0000, 0x0000, 0x0000};
             ngx2::framebuffer_t fb       = {2, 2, pixels};
@@ -129,12 +129,12 @@ UNITTEST_SUITE_BEGIN(gx2)
             const ngx2::color_t source[] = {0xffff, 0xffff, 0xffff, 0xffff};
             const u8            alpha[]  = {0x1b};
             ngx2::sprite_t      sprite   = {};
-            sprite.width                 = 4;
-            sprite.height                = 1;
-            sprite.pixel_format          = ngx2::FMT_PIXEL_RGB565;
-            sprite.alpha_format          = ngx2::FMT_ALPHA_A2;
-            init_bytes(sprite.pixel_data, source, sizeof(source));
-            init_bytes(sprite.alpha_data, alpha, sizeof(alpha));
+            sprite.m_width                 = 4;
+            sprite.m_height                = 1;
+            sprite.m_pixel_format          = ngx2::FMT_PIXEL_RGB565;
+            sprite.m_alpha_format          = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.m_pixel_data, source, sizeof(source));
+            init_bytes(sprite.m_alpha_data, alpha, sizeof(alpha));
 
             ngx2::color_t       pixels[] = {0, 0, 0, 0};
             ngx2::framebuffer_t fb       = {4, 1, pixels};
@@ -151,14 +151,14 @@ UNITTEST_SUITE_BEGIN(gx2)
         {
             const ngx2::color_t source[] = {0xffff, 0xffff};
             ngx2::sprite_t      sprite   = {};
-            sprite.width                 = 2;
-            sprite.height                = 1;
-            sprite.pixel_format          = ngx2::FMT_PIXEL_RGB565;
-            init_bytes(sprite.pixel_data, source, sizeof(source));
+            sprite.m_width                 = 2;
+            sprite.m_height                = 1;
+            sprite.m_pixel_format          = ngx2::FMT_PIXEL_RGB565;
+            init_bytes(sprite.m_pixel_data, source, sizeof(source));
 
             const u8 alpha_a4[] = {0x08};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A4;
-            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.m_alpha_data, alpha_a4, sizeof(alpha_a4));
             ngx2::color_t       pixels_a4[] = {0, 0};
             ngx2::framebuffer_t fb_a4       = {2, 1, pixels_a4};
             ngx2::rect_t        scissor     = {0, 0, 2, 1};
@@ -167,8 +167,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK(pixels_a4[1] == 0x7bef);
 
             const u8 alpha_a8[] = {0, 128};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A8;
-            init_bytes(sprite.alpha_data, alpha_a8, sizeof(alpha_a8));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A8;
+            init_bytes(sprite.m_alpha_data, alpha_a8, sizeof(alpha_a8));
             ngx2::color_t       pixels_a8[] = {0, 0};
             ngx2::framebuffer_t fb_a8       = {2, 1, pixels_a8};
             ngx2::draw_sprite(fb_a8, scissor, &sprite, nullptr, 0, 0, 0);
@@ -181,12 +181,12 @@ UNITTEST_SUITE_BEGIN(gx2)
             const ngx2::color_t source_a2[] = {0xffff, 0xffff, 0xffff, 0xffff, 0xffff};
             const u8            alpha_a2[]  = {0x1b, 0xc0};
             ngx2::sprite_t      sprite      = {};
-            sprite.width                    = 5;
-            sprite.height                   = 1;
-            sprite.pixel_format             = ngx2::FMT_PIXEL_RGB565;
-            sprite.alpha_format             = ngx2::FMT_ALPHA_A2;
-            init_bytes(sprite.pixel_data, source_a2, sizeof(source_a2));
-            init_bytes(sprite.alpha_data, alpha_a2, sizeof(alpha_a2));
+            sprite.m_width                    = 5;
+            sprite.m_height                   = 1;
+            sprite.m_pixel_format             = ngx2::FMT_PIXEL_RGB565;
+            sprite.m_alpha_format             = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.m_pixel_data, source_a2, sizeof(source_a2));
+            init_bytes(sprite.m_alpha_data, alpha_a2, sizeof(alpha_a2));
 
             ngx2::color_t       pixels_a2[] = {0, 0, 0, 0};
             ngx2::framebuffer_t fb_a2       = {4, 1, pixels_a2};
@@ -199,10 +199,10 @@ UNITTEST_SUITE_BEGIN(gx2)
 
             const ngx2::color_t source_a4[] = {0xffff, 0xffff, 0xffff, 0xffff};
             const u8            alpha_a4[]  = {0x08, 0xf4};
-            sprite.width                    = 4;
-            sprite.alpha_format             = ngx2::FMT_ALPHA_A4;
-            init_bytes(sprite.pixel_data, source_a4, sizeof(source_a4));
-            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            sprite.m_width                    = 4;
+            sprite.m_alpha_format             = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.m_pixel_data, source_a4, sizeof(source_a4));
+            init_bytes(sprite.m_alpha_data, alpha_a4, sizeof(alpha_a4));
 
             ngx2::color_t       pixels_a4[] = {0, 0, 0};
             ngx2::framebuffer_t fb_a4       = {3, 1, pixels_a4};
@@ -219,14 +219,14 @@ UNITTEST_SUITE_BEGIN(gx2)
             const u8            alpha[]          = {0x40};
             const ngx2::color_t palette_colors[] = {0xf800, 0x07e0};
             ngx2::sprite_t      sprite            = {};
-            sprite.width                          = 2;
-            sprite.height                         = 1;
-            sprite.pixel_format                   = ngx2::FMT_PIXEL_I8;
-            sprite.alpha_format                   = ngx2::FMT_ALPHA_A1;
-            init_bytes(sprite.pixel_data, indices, sizeof(indices));
-            init_bytes(sprite.alpha_data, alpha, sizeof(alpha));
+            sprite.m_width                          = 2;
+            sprite.m_height                         = 1;
+            sprite.m_pixel_format                   = ngx2::FMT_PIXEL_I8;
+            sprite.m_alpha_format                   = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.m_pixel_data, indices, sizeof(indices));
+            init_bytes(sprite.m_alpha_data, alpha, sizeof(alpha));
             ngx2::palette_t palette = {ngx2::FMT_PALETTE_RGB565, {}};
-            init_bytes(palette.data, palette_colors, sizeof(palette_colors));
+            init_bytes(palette.m_data, palette_colors, sizeof(palette_colors));
 
             ngx2::color_t       pixels[] = {0x001f, 0x001f};
             ngx2::framebuffer_t fb       = {2, 1, pixels};
@@ -242,17 +242,17 @@ UNITTEST_SUITE_BEGIN(gx2)
             const u8            indices[]        = {0, 0};
             const ngx2::color_t palette_colors[] = {0xffff};
             ngx2::sprite_t      sprite            = {};
-            sprite.width                          = 2;
-            sprite.height                         = 1;
-            sprite.pixel_format                   = ngx2::FMT_PIXEL_I8;
-            init_bytes(sprite.pixel_data, indices, sizeof(indices));
+            sprite.m_width                          = 2;
+            sprite.m_height                         = 1;
+            sprite.m_pixel_format                   = ngx2::FMT_PIXEL_I8;
+            init_bytes(sprite.m_pixel_data, indices, sizeof(indices));
             ngx2::palette_t palette = {ngx2::FMT_PALETTE_RGB565, {}};
-            init_bytes(palette.data, palette_colors, sizeof(palette_colors));
+            init_bytes(palette.m_data, palette_colors, sizeof(palette_colors));
             ngx2::rect_t    scissor                = {0, 0, 2, 1};
 
             const u8 alpha_a2[] = {0x70};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A2;
-            init_bytes(sprite.alpha_data, alpha_a2, sizeof(alpha_a2));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.m_alpha_data, alpha_a2, sizeof(alpha_a2));
             ngx2::color_t       pixels_a2[] = {0, 0};
             ngx2::framebuffer_t fb_a2       = {2, 1, pixels_a2};
             ngx2::draw_sprite(fb_a2, scissor, &sprite, &palette, 0, 0, 0);
@@ -260,8 +260,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK(pixels_a2[1] == 0xffff);
 
             const u8 alpha_a4[] = {0x8f};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A4;
-            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.m_alpha_data, alpha_a4, sizeof(alpha_a4));
             ngx2::color_t       pixels_a4[] = {0, 0};
             ngx2::framebuffer_t fb_a4       = {2, 1, pixels_a4};
             ngx2::draw_sprite(fb_a4, scissor, &sprite, &palette, 0, 0, 0);
@@ -269,8 +269,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK(pixels_a4[1] == 0xffff);
 
             const u8 alpha_a8[] = {128, 255};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A8;
-            init_bytes(sprite.alpha_data, alpha_a8, sizeof(alpha_a8));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A8;
+            init_bytes(sprite.m_alpha_data, alpha_a8, sizeof(alpha_a8));
             ngx2::color_t       pixels_a8[] = {0, 0};
             ngx2::framebuffer_t fb_a8       = {2, 1, pixels_a8};
             ngx2::draw_sprite(fb_a8, scissor, &sprite, &palette, 0, 0, 0);
@@ -285,11 +285,11 @@ UNITTEST_SUITE_BEGIN(gx2)
                 0x2001, 0x2002, 0x2003,
             };
             ngx2::sprite_t sprite  = {};
-            sprite.width           = 3;
-            sprite.height          = 2;
-            sprite.pixel_format    = ngx2::FMT_PIXEL_RGB565;
-            sprite.alpha_format    = ngx2::FMT_ALPHA_A0;
-            init_bytes(sprite.pixel_data, source, sizeof(source));
+            sprite.m_width           = 3;
+            sprite.m_height          = 2;
+            sprite.m_pixel_format    = ngx2::FMT_PIXEL_RGB565;
+            sprite.m_alpha_format    = ngx2::FMT_ALPHA_A0;
+            init_bytes(sprite.m_pixel_data, source, sizeof(source));
 
             ngx2::color_t       pixels[6 * 4] = {};
             ngx2::framebuffer_t fb            = {6, 4, pixels};
@@ -309,9 +309,9 @@ UNITTEST_SUITE_BEGIN(gx2)
                 0x0101, 0x0202, 0x0303, 0x0404,
                 0x0505, 0x0606, 0x0707, 0x0808,
             };
-            sprite.width                              = 4;
-            sprite.height                             = 2;
-            init_bytes(sprite.pixel_data, downsample_source, sizeof(downsample_source));
+            sprite.m_width                              = 4;
+            sprite.m_height                             = 2;
+            init_bytes(sprite.m_pixel_data, downsample_source, sizeof(downsample_source));
             ngx2::color_t       downsample_pixels[] = {0, 0, 0};
             ngx2::framebuffer_t downsample_fb       = {3, 1, downsample_pixels};
             ngx2::rect_t        downsample_scissor  = {0, 0, 3, 1};
@@ -321,9 +321,9 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK_EQUAL(0, downsample_pixels[2]);
 
             const ngx2::color_t thirds_source[] = {0x1111, 0x2222};
-            sprite.width                          = 2;
-            sprite.height                         = 1;
-            init_bytes(sprite.pixel_data, thirds_source, sizeof(thirds_source));
+            sprite.m_width                          = 2;
+            sprite.m_height                         = 1;
+            init_bytes(sprite.m_pixel_data, thirds_source, sizeof(thirds_source));
             ngx2::color_t       thirds_pixels[6] = {};
             ngx2::framebuffer_t thirds_fb        = {6, 1, thirds_pixels};
             ngx2::rect_t        thirds_scissor   = {0, 0, 6, 1};
@@ -337,15 +337,15 @@ UNITTEST_SUITE_BEGIN(gx2)
         {
             const ngx2::color_t source[] = {0xffff, 0xffff, 0xffff, 0xffff};
             ngx2::sprite_t      sprite   = {};
-            sprite.width                 = 4;
-            sprite.height                = 1;
-            sprite.pixel_format          = ngx2::FMT_PIXEL_RGB565;
-            init_bytes(sprite.pixel_data, source, sizeof(source));
+            sprite.m_width                 = 4;
+            sprite.m_height                = 1;
+            sprite.m_pixel_format          = ngx2::FMT_PIXEL_RGB565;
+            init_bytes(sprite.m_pixel_data, source, sizeof(source));
             ngx2::rect_t scissor = {0, 0, 8, 1};
 
             const u8 alpha_a1[] = {0x50};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A1;
-            init_bytes(sprite.alpha_data, alpha_a1, sizeof(alpha_a1));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.m_alpha_data, alpha_a1, sizeof(alpha_a1));
             ngx2::color_t       pixels_a1[8] = {};
             ngx2::framebuffer_t fb_a1        = {8, 1, pixels_a1};
             ngx2::draw_sprite_with_scale(fb_a1, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
@@ -354,8 +354,8 @@ UNITTEST_SUITE_BEGIN(gx2)
                 CHECK_EQUAL(expected_a1[i], pixels_a1[i]);
 
             const u8 alpha_a2[] = {0x1b};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A2;
-            init_bytes(sprite.alpha_data, alpha_a2, sizeof(alpha_a2));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.m_alpha_data, alpha_a2, sizeof(alpha_a2));
             ngx2::color_t       pixels_a2[8] = {};
             ngx2::framebuffer_t fb_a2        = {8, 1, pixels_a2};
             ngx2::draw_sprite_with_scale(fb_a2, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
@@ -364,8 +364,8 @@ UNITTEST_SUITE_BEGIN(gx2)
                 CHECK_EQUAL(expected_a2[i], pixels_a2[i]);
 
             const u8 alpha_a4[] = {0x08, 0xf4};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A4;
-            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.m_alpha_data, alpha_a4, sizeof(alpha_a4));
             ngx2::color_t       pixels_a4[8] = {};
             ngx2::framebuffer_t fb_a4        = {8, 1, pixels_a4};
             ngx2::draw_sprite_with_scale(fb_a4, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
@@ -374,8 +374,8 @@ UNITTEST_SUITE_BEGIN(gx2)
                 CHECK_EQUAL(expected_a4[i], pixels_a4[i]);
 
             const u8 alpha_a8[] = {0, 128, 255, 0};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A8;
-            init_bytes(sprite.alpha_data, alpha_a8, sizeof(alpha_a8));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A8;
+            init_bytes(sprite.m_alpha_data, alpha_a8, sizeof(alpha_a8));
             ngx2::color_t       pixels_a8[8] = {};
             ngx2::framebuffer_t fb_a8        = {8, 1, pixels_a8};
             ngx2::draw_sprite_with_scale(fb_a8, scissor, &sprite, nullptr, 0, 0, 2.0f, 0);
@@ -389,15 +389,15 @@ UNITTEST_SUITE_BEGIN(gx2)
             const u8            indices[]        = {0, 1};
             const ngx2::color_t palette_colors[] = {0xffff, 0xf800};
             ngx2::palette_t     palette           = {ngx2::FMT_PALETTE_RGB565, {}};
-            init_bytes(palette.data, palette_colors, sizeof(palette_colors));
+            init_bytes(palette.m_data, palette_colors, sizeof(palette_colors));
             ngx2::sprite_t sprite = {};
-            sprite.width          = 2;
-            sprite.height         = 1;
-            sprite.pixel_format   = ngx2::FMT_PIXEL_I8;
-            init_bytes(sprite.pixel_data, indices, sizeof(indices));
+            sprite.m_width          = 2;
+            sprite.m_height         = 1;
+            sprite.m_pixel_format   = ngx2::FMT_PIXEL_I8;
+            init_bytes(sprite.m_pixel_data, indices, sizeof(indices));
             ngx2::rect_t scissor = {0, 0, 4, 1};
 
-            sprite.alpha_format = ngx2::FMT_ALPHA_A0;
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A0;
             ngx2::color_t       pixels_a0[4] = {};
             ngx2::framebuffer_t fb_a0        = {4, 1, pixels_a0};
             ngx2::draw_sprite_with_scale(fb_a0, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
@@ -407,8 +407,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK_EQUAL(0xf800, pixels_a0[3]);
 
             const u8 alpha_a1[] = {0x40};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A1;
-            init_bytes(sprite.alpha_data, alpha_a1, sizeof(alpha_a1));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.m_alpha_data, alpha_a1, sizeof(alpha_a1));
             ngx2::color_t       pixels_a1[4] = {};
             ngx2::framebuffer_t fb_a1        = {4, 1, pixels_a1};
             ngx2::draw_sprite_with_scale(fb_a1, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
@@ -418,8 +418,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK_EQUAL(0xf800, pixels_a1[3]);
 
             const u8 alpha_a2[] = {0x70};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A2;
-            init_bytes(sprite.alpha_data, alpha_a2, sizeof(alpha_a2));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A2;
+            init_bytes(sprite.m_alpha_data, alpha_a2, sizeof(alpha_a2));
             ngx2::color_t       pixels_a2[4] = {};
             ngx2::framebuffer_t fb_a2        = {4, 1, pixels_a2};
             ngx2::draw_sprite_with_scale(fb_a2, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
@@ -429,8 +429,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK_EQUAL(0xf800, pixels_a2[3]);
 
             const u8 alpha_a4[] = {0x8f};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A4;
-            init_bytes(sprite.alpha_data, alpha_a4, sizeof(alpha_a4));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A4;
+            init_bytes(sprite.m_alpha_data, alpha_a4, sizeof(alpha_a4));
             ngx2::color_t       pixels_a4[4] = {};
             ngx2::framebuffer_t fb_a4        = {4, 1, pixels_a4};
             ngx2::draw_sprite_with_scale(fb_a4, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
@@ -440,8 +440,8 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK_EQUAL(0xf800, pixels_a4[3]);
 
             const u8 alpha_a8[] = {128, 255};
-            sprite.alpha_format = ngx2::FMT_ALPHA_A8;
-            init_bytes(sprite.alpha_data, alpha_a8, sizeof(alpha_a8));
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A8;
+            init_bytes(sprite.m_alpha_data, alpha_a8, sizeof(alpha_a8));
             ngx2::color_t       pixels_a8[4] = {};
             ngx2::framebuffer_t fb_a8        = {4, 1, pixels_a8};
             ngx2::draw_sprite_with_scale(fb_a8, scissor, &sprite, &palette, 0, 0, 2.0f, 0);
@@ -455,10 +455,10 @@ UNITTEST_SUITE_BEGIN(gx2)
         {
             const u8       alpha[] = {0x40};
             ngx2::sprite_t sprite  = {};
-            sprite.width           = 2;
-            sprite.height          = 1;
-            sprite.alpha_format    = ngx2::FMT_ALPHA_A1;
-            init_bytes(sprite.alpha_data, alpha, sizeof(alpha));
+            sprite.m_width           = 2;
+            sprite.m_height          = 1;
+            sprite.m_alpha_format    = ngx2::FMT_ALPHA_A1;
+            init_bytes(sprite.m_alpha_data, alpha, sizeof(alpha));
 
             ngx2::color_t       pixels[] = {0x001f, 0x001f, 0x001f, 0x001f};
             ngx2::framebuffer_t fb       = {4, 1, pixels};
@@ -478,9 +478,9 @@ UNITTEST_SUITE_BEGIN(gx2)
             CHECK_EQUAL(0x07e0, pixels[3]);
 
             const u8 indices[] = {0, 0};
-            sprite.pixel_format = ngx2::FMT_PIXEL_I8;
-            sprite.alpha_format = ngx2::FMT_ALPHA_A0;
-            init_bytes(sprite.pixel_data, indices, sizeof(indices));
+            sprite.m_pixel_format = ngx2::FMT_PIXEL_I8;
+            sprite.m_alpha_format = ngx2::FMT_ALPHA_A0;
+            init_bytes(sprite.m_pixel_data, indices, sizeof(indices));
             ngx2::draw_sprite_with_scale(fb, scissor, &sprite, nullptr, 0, 0, 2.0f, 0xffff);
             CHECK_EQUAL(0x001f, pixels[0]);
             CHECK_EQUAL(0x001f, pixels[1]);

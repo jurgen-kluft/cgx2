@@ -7,8 +7,6 @@
 
 namespace ncore
 {
-    class alloc_t;
-
     namespace ngx2
     {
         typedef u16 color_t;

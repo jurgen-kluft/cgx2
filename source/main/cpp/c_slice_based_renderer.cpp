@@ -4,6 +4,9 @@
 
 #include "cgx2/c_slice_based_renderer.h"
 #include "cgx2/c_color.h"
+#include "cgx2/c_sprite.h"
+#include "cgx2/c_palette.h"
+#include "cgx2/c_font.h"
 #include "cgx2/c_types.h"
 
 #include <cmath>
@@ -710,7 +713,7 @@ namespace ncore
             void draw_text(ctx_t& ctx, u32 font_index, u16 fontSize, i32 x, i32 y, const char* text)
             {
                 ngx2::font_t* font = ngx2::get_font(ctx.m_font_pack, font_index);
-                if (!s_is_valid_context(ctx) || font == nullptr || text == nullptr || font->m_font_type != 1)
+                if (!s_is_valid_context(ctx) || font == nullptr || text == nullptr || font->m_size != 0)
                     return;
 
                 i32 const glyph_height = (i32)font->m_ascent - (i32)font->m_descent;
