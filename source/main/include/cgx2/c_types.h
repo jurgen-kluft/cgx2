@@ -142,6 +142,7 @@ namespace ncore
             u8 m_h;  // height of the glyph bitmap in pixels
         };
 
+        // Note: ascent/descent/line_gap are all in 8.8 fixed-point format and relative to size == 32
         struct font_t
         {
             array_t<u8>                 m_data;               // actual font data (bitmap or SDF)
@@ -153,7 +154,7 @@ namespace ncore
             u16                         m_ascent;             // distance (8.8 fixed-point) from baseline to top of font
             u16                         m_descent;            // distance (8.8 fixed-point) from baseline to bottom of font
             i16                         m_line_gap;           // distance (8.8 fixed-point) from bottom of one line to top of next line (can be negative)
-            u16                         m_size;               // reference size (8.8 fixed-point)
+            u16                         m_reserved;           // reserved
         };
 
         struct font_pack_t

@@ -18,8 +18,8 @@ namespace ncore
             return pack->fonts.item(font_index);
         }
 
-        u16 get_text_y_start(const font_t* font, u16 y, u8 size);
-        u16 get_text_y_end(const font_t* font, u16 y, u8 size);
+        u16 get_text_y_start(u16 ascent, u16 y, u8 size);
+        u16 get_text_y_end(u16 descent, u16 y, u8 size);
 
     }  // namespace ngx2
 }  // namespace ncore

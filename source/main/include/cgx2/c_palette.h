@@ -11,18 +11,6 @@ namespace ncore
 {
     namespace ngx2
     {
-        struct palette_t
-        {
-            u32           m_format;  // image_format_t
-            array_t<byte> m_data;    // array of RGB565 colors
-        };
-
-        struct palette_pack_t
-        {
-            u32                m_version;   // version of the palette pack format
-            array_t<palette_t> m_palettes;  // <palette_t>, array of palettes
-        };
-
         inline const palette_t* get_palette(const palette_pack_t* palette_pack, u32 index)
         {
             if (index < palette_pack->m_palettes.m_size)
