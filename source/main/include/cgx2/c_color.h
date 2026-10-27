@@ -11,6 +11,9 @@ namespace ncore
     {
         typedef u16 color_t;
 
+        const u32 cRgb888ColorBlack = 0x000000;
+        const u32 cRgb888ColorWhite = 0xFFFFFF;
+
         inline u16 rgb888_to_rgb565(u32 color)
         {
             const u32 r = (color >> 16) & 0xFF;
