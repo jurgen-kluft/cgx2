@@ -15,15 +15,13 @@ namespace ncore
 {
     namespace ngx2
     {
-        static inline bool s_is_valid_context(ctx_t const& ctx) { return ctx.m_pixels != nullptr && ctx.m_width != 0 && ctx.m_height != 0; }
-
         static inline bool s_is_y_in_slice(ctx_t const& ctx, i32 y) { return y >= (i32)ctx.m_offseth && y < (i32)ctx.m_offseth + (i32)ctx.m_height; }
 
         static inline u16* s_row(ctx_t& ctx, i32 y) { return ctx.m_pixels + (y - (i32)ctx.m_offseth) * (i32)ctx.m_width; }
 
         static bool s_clip_hspan(ctx_t const& ctx, i32& x0, i32& x1, i32 y)
         {
-            if (!s_is_valid_context(ctx) || !s_is_y_in_slice(ctx, y))
+            if (!s_is_y_in_slice(ctx, y))
                 return false;
 
             if (x0 > x1)
@@ -45,7 +43,7 @@ namespace ncore
 
         static bool s_clip_vspan(ctx_t const& ctx, i32 x, i32& y0, i32& y1)
         {
-            if (!s_is_valid_context(ctx) || x < 0 || x >= (i32)ctx.m_width)
+            if (x < 0 || x >= (i32)ctx.m_width)
                 return false;
 
             if (y0 > y1)
@@ -69,9 +67,6 @@ namespace ncore
 
         static bool s_clip_rect(ctx_t const& ctx, i32& x0, i32& y0, i32& x1, i32& y1)
         {
-            if (!s_is_valid_context(ctx))
-                return false;
-
             i32 const slice_y0 = (i32)ctx.m_offseth;
             i32 const slice_y1 = slice_y0 + (i32)ctx.m_height;
             if (x1 <= 0 || x0 >= (i32)ctx.m_width || y1 <= slice_y0 || y0 >= slice_y1)
@@ -135,6 +130,15 @@ namespace ncore
             u32 const blue    = ((foreground & 0x001F) * alpha + (background & 0x001F) * inverse) >> 8;
             return (u16)(red | green | blue);
         }
+
+        // 888      8888888 888b    888 8888888888 .d8888b.
+        // 888        888   8888b   888 888       d88P  Y88b
+        // 888        888   88888b  888 888       Y88b.
+        // 888        888   888Y88b 888 8888888    "Y888b.
+        // 888        888   888 Y88b888 888           "Y88b.
+        // 888        888   888  Y88888 888             "888
+        // 888        888   888   Y8888 888       Y88b  d88P
+        // 88888888 8888888 888    Y888 8888888888 "Y8888P"
 
         static void s_vspan(ctx_t& ctx, i32 x, i32 y0, i32 y1, u16 color)
         {
@@ -219,6 +223,104 @@ namespace ncore
                     s_row(ctx, y)[x] = c;
             }
         }
+
+        // 8888888b.  8888888888 .d8888b. 88888888888     d8888 888b    888  .d8888b.  888      8888888888
+        // 888   Y88b 888       d88P  Y88b    888        d88888 8888b   888 d88P  Y88b 888      888
+        // 888    888 888       888    888    888       d88P888 88888b  888 888    888 888      888
+        // 888   d88P 8888888   888           888      d88P 888 888Y88b 888 888        888      8888888
+        // 8888888P"  888       888           888     d88P  888 888 Y88b888 888  88888 888      888
+        // 888 T88b   888       888    888    888    d88P   888 888  Y88888 888    888 888      888
+        // 888  T88b  888       Y88b  d88P    888   d8888888888 888   Y8888 Y88b  d88P 888      888
+        // 888   T88b 8888888888 "Y8888P"     888  d88P     888 888    Y888  "Y8888P88 88888888 8888888888
+
+        void draw_rect(ctx_t& ctx, i32 x, i32 y, i32 w, i32 h, u32 color)
+        {
+            // to be implemented
+            // make sure to cull to the vertical bounds of the context
+        }
+
+        // 221 Bytes total (unchanged flat stream)
+        // What is encoded here:
+        // Encodes the corner deltas for rounded rectangles, each byte represents a delta value for a specific corner.
+        // Each row is aligned to a byte boundary, meaning that the data for each row starts at the beginning of a new byte.
+        //
+        const u8 cCORNER_PACKED_DELTAS[] = {0x10, 0x11, 0x21, 0x10, 0x22, 0x21, 0x22, 0x21, 0x10, 0x22, 0x32, 0x21, 0x32, 0x33, 0x32, 0x10, 0x33, 0x34, 0x33, 0x21, 0x33, 0x43, 0x43, 0x32, 0x10, 0x34, 0x44, 0x44, 0x33, 0x21, 0x34, 0x45, 0x44, 0x44,
+                                            0x33, 0x10, 0x34, 0x55, 0x54, 0x44, 0x43, 0x21, 0x44, 0x55, 0x55, 0x55, 0x44, 0x33, 0x10, 0x44, 0x65, 0x55, 0x55, 0x54, 0x43, 0x22, 0x45, 0x65, 0x65, 0x55, 0x55, 0x44, 0x33, 0x10, 0x45, 0x66, 0x66, 0x65,
+                                            0x55, 0x54, 0x43, 0x22, 0x45, 0x66, 0x76, 0x66, 0x65, 0x55, 0x44, 0x33, 0x10, 0x45, 0x67, 0x76, 0x66, 0x66, 0x55, 0x54, 0x43, 0x22, 0x45, 0x77, 0x77, 0x76, 0x66, 0x65, 0x55, 0x44, 0x33, 0x10, 0x46, 0x77,
+                                            0x77, 0x77, 0x66, 0x66, 0x55, 0x54, 0x43, 0x22, 0x56, 0x78, 0x77, 0x77, 0x76, 0x66, 0x65, 0x55, 0x44, 0x33, 0x10, 0x56, 0x78, 0x87, 0x77, 0x77, 0x66, 0x66, 0x55, 0x54, 0x43, 0x22, 0x56, 0x78, 0x88, 0x87,
+                                            0x77, 0x77, 0x66, 0x66, 0x55, 0x44, 0x33, 0x10, 0x56, 0x88, 0x88, 0x87, 0x87, 0x77, 0x76, 0x66, 0x55, 0x44, 0x33, 0x10, 0x57, 0x88, 0x98, 0x88, 0x87, 0x87, 0x77, 0x66, 0x65, 0x54, 0x43, 0x22, 0x57, 0x89,
+                                            0x98, 0x88, 0x88, 0x87, 0x77, 0x76, 0x66, 0x55, 0x44, 0x33, 0x10, 0x57, 0x89, 0x99, 0x98, 0x88, 0x88, 0x77, 0x77, 0x66, 0x65, 0x54, 0x43, 0x22, 0x57, 0x99, 0x99, 0x98, 0x98, 0x88, 0x87, 0x77, 0x76, 0x66,
+                                            0x55, 0x44, 0x33, 0x10, 0x57, 0x99, 0xA9, 0x99, 0x98, 0x88, 0x88, 0x77, 0x77, 0x66, 0x65, 0x54, 0x43, 0x22, 0x57, 0x99, 0xAA, 0x99, 0x99, 0x98, 0x88, 0x87, 0x77, 0x76, 0x66, 0x55, 0x44, 0x33, 0x10, 0x68,
+                                            0x9A, 0xAA, 0xA9, 0x99, 0x99, 0x88, 0x88, 0x77, 0x76, 0x65, 0x54, 0x43, 0x22, 0x00, 0x68, 0x9A, 0xBB, 0xA9, 0x9A, 0x99, 0x98, 0x88, 0x87, 0x77, 0x66, 0x65, 0x54, 0x43, 0x22, 0x00};
+
+        // Only 16 bytes! Stores absolute data offsets for ODD radii only:
+        // Index 0 = R1, Index 1 = R3, Index 2 = R5, ... Index 15 = R31
+        // Example:
+        //     r=1, R1 = cCORNER_PACKED_DELTAS[cODD_RADIUS_OFFSETS[r>>1]]
+        //     r=2, R2 = cCORNER_PACKED_DELTAS[cODD_RADIUS_OFFSETS[(r - 1)>>1] + (r >> 1)]
+        //     r=3, R3 = cCORNER_PACKED_DELTAS[cODD_RADIUS_OFFSETS[r>>1]]
+        //     r=4, R4 = cCORNER_PACKED_DELTAS[cODD_RADIUS_OFFSETS[(r - 1)>>1] + (r >> 1)]
+        //     ...
+        const u8 cODD_RADIUS_OFFSETS[] = {0, 2, 6, 12, 20, 30, 42, 56, 72, 90, 110, 132, 156, 181, 207, 233};
+
+        void draw_rrect(ctx_t& ctx, i32 x, i32 y, i32 w, i32 h, i32 r, u32 color)
+        {
+            // Note: the context pixels in the vertical direction are from m_offseth to (m_offseth + m_height - 1)
+
+            if (r <= 0)
+            {
+                draw_rect(ctx, x, y, w, h, color);
+                return;
+            }
+            if (r > 32)
+                r = 32;
+            if (r > w / 2)
+                r = w / 2;
+            if (r > h / 2)
+                r = h / 2;
+
+            // 1. Draw central core block
+            draw_rect(ctx, x, y + r, w, h - (2 * r), color);
+
+            // 2. Derive 100% calculation-free memory alignment index
+            u16 data_start_idx;
+            if (r & 1)
+            {
+                // Odd Radius: Direct 1-cycle lookup
+                data_start_idx = cODD_RADIUS_OFFSETS[r >> 1];
+            }
+            else
+            {
+                // Even Radius: Grab preceding odd row offset + add its byte-length
+                data_start_idx = cODD_RADIUS_OFFSETS[(r - 1) >> 1] + (r >> 1);
+            }
+
+            const u8* row_data = &cCORNER_PACKED_DELTAS[data_start_idx];
+
+            for (i16 i = 0; i < r; i++)
+            {
+                u8 packed_byte = row_data[i >> 1];
+                u8 delta       = ((i & 1) == 0) ? (packed_byte >> 4) : (packed_byte & 0x0F);
+
+                i16 w_corner = delta + i;
+                i16 line_w   = w - (2 * (r - w_corner));
+
+                // Top arc bridge
+                draw_hline(ctx, x + (r - w_corner), y + i, line_w, color);
+
+                // Bottom arc bridge
+                draw_hline(ctx, x + (r - w_corner), y + h - 1 - i, line_w, color);
+            }
+        }
+
+        //  .d8888b.  8888888b.  8888888b.  8888888 88888888888 8888888888
+        // d88P  Y88b 888   Y88b 888   Y88b   888       888     888
+        // Y88b.      888    888 888    888   888       888     888
+        //  "Y888b.   888   d88P 888   d88P   888       888     8888888
+        //     "Y88b. 8888888P"  8888888P"    888       888     888
+        //       "888 888        888 T88b     888       888     888
+        // Y88b  d88P 888        888  T88b    888       888     888
+        //  "Y8888P"  888        888   T88b 8888888     888     8888888888
 
         static u16* s_get_rgb565_pixels(sprite_t const* sprite)
         {
@@ -372,11 +474,11 @@ namespace ncore
             }
             else if (i8_pixels != nullptr)
             {
-                u32        alpha_row_stride = 0;
-                const u8*  alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
+                u32       alpha_row_stride = 0;
+                const u8* alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
                 if (alpha_pixels != nullptr && palette != nullptr)
                 {
-                    u16 const * pal = (u16 const*)palette->m_data.data();
+                    u16 const* pal = (u16 const*)palette->m_data.data();
                     switch (sprite->m_alpha_format)
                     {
                         case FMT_ALPHA_A0:
@@ -604,9 +706,9 @@ namespace ncore
             }
             else
             {
-                u32        alpha_row_stride = 0;
-                const u8*  alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
-                const u8*  i8_pixels        = s_get_i8_pixels(sprite);
+                u32       alpha_row_stride = 0;
+                const u8* alpha_pixels     = s_get_alpha_data(sprite, alpha_row_stride);
+                const u8* i8_pixels        = s_get_i8_pixels(sprite);
                 if (i8_pixels != nullptr && alpha_pixels != nullptr && palette != nullptr)
                 {
                     const u16* pal = (u16 const*)palette->m_data.data();
@@ -717,7 +819,7 @@ namespace ncore
 
         void draw_text(ctx_t& ctx, const font_t* font, u16 fontSize, i32 x, i32 y, const char* text, u32 color)
         {
-            if (!s_is_valid_context(ctx) || font == nullptr || text == nullptr)
+            if (font == nullptr || text == nullptr)
                 return;
 
             i32 const glyph_height = (i32)font->m_ascent - (i32)font->m_descent;
