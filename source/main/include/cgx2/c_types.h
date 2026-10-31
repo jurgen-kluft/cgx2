@@ -151,10 +151,10 @@ namespace ncore
             array_t<glyph_dimensions_t> m_glyphs_dimensions;  // glyphs array, indexed as glyph[map[ASCII character]]
             array_t<u16>                m_offsets;            // offset = (offsets[map[ASCII character]] * 8) into the coverage data for the glyph
             array_t<u8>                 m_map;                // maps ASCII character codes to glyph indices in the glyphs array, or 0xFF if the character is not supported
-            u16                         m_ascent;             // distance (8.8 fixed-point) from baseline to top of font
-            u16                         m_descent;            // distance (8.8 fixed-point) from baseline to bottom of font
-            i16                         m_line_gap;           // distance (8.8 fixed-point) from bottom of one line to top of next line (can be negative)
-            u16                         m_reserved;           // reserved
+            u8                          m_ascent;             // distance (pixels) from baseline to top of font
+            u8                          m_descent;            // distance (pixels) from baseline to bottom of font
+            i8                          m_line_gap;           // distance (pixels) from bottom of one line to top of next line (can be negative)
+            u8                          m_size;               // font size
         };
 
         struct font_pack_t

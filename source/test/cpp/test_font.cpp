@@ -15,18 +15,20 @@ UNITTEST_SUITE_BEGIN(font)
 
         UNITTEST_TEST(y_start)
         {
-            const u16 ascent      = 20u << 8;
+            const u8 font_size = 32u;
+            const u8 ascent    = 20u;
 
-            CHECK_EQUAL(80u << 8, ngx2::get_text_y_start(ascent, 100u << 8, 32));
-            CHECK_EQUAL(90u << 8, ngx2::get_text_y_start(ascent, 100u << 8, 16));
+            CHECK_EQUAL(80u, ngx2::get_text_y_start(font_size, ascent, 100u, 32));
+            CHECK_EQUAL(90u, ngx2::get_text_y_start(font_size, ascent, 100u, 16));
         }
 
         UNITTEST_TEST(y_end)
         {
-            const u16 descent     = 4u << 8;
+            const u8 font_size = 32u;
+            const u8 descent   = 4u;
 
-            CHECK_EQUAL(104u << 8, ngx2::get_text_y_end(descent, 100u << 8, 32));
-            CHECK_EQUAL(106u << 8, ngx2::get_text_y_end(descent, 100u << 8, 48));
+            CHECK_EQUAL(104u, ngx2::get_text_y_end(font_size, descent, 100u, 32));
+            CHECK_EQUAL(106u, ngx2::get_text_y_end(font_size, descent, 100u, 48));
         }
     }
 }

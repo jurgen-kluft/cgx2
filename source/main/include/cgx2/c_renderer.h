@@ -1,5 +1,5 @@
-#ifndef __CGX2_DRAW_SBR_H__
-#define __CGX2_DRAW_SBR_H__
+#ifndef __CGX2_RENDERER_H__
+#define __CGX2_RENDERER_H__
 #include "ccore/c_target.h"
 #ifdef USE_PRAGMA_ONCE
     #pragma once
@@ -48,4 +48,4 @@ namespace ncore
     }  // namespace ngx2
 }  // namespace ncore
 
-#endif  /// __CGX2_DRAW_SBR_H__
+#endif  /// __CGX2_RENDERER_H__

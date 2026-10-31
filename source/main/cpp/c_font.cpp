@@ -10,21 +10,19 @@ namespace ncore
 {
     namespace ngx2
     {
-        // Note: ascent/descent/line_gap are all in 8.8 fixed-point format and relative to size == 32
-        const u32 cReferenceSizeFixed = 32u << 8;
-        u16       get_text_y_start(u16 ascent, u16 y, u8 size)
+        // Note: ascent/descent/line_gap are values relative to the size of the font, so we need to scale
+        //       them accordingly. Here we use fixed point arithmetic for scaling.
+        u16 get_text_y_start(u8 font_size, u8 ascent, u16 y, u8 requested_size)
         {
-            const u32 size_fixed   = static_cast<u32>(size) << 8;
-            const u32 scale        = (size_fixed << 16) / cReferenceSizeFixed;
-            const u32 ascent_fixed = (ascent * scale + 0x8000) >> 16;
+            const u32 scale           = ((u32)requested_size << 8) / font_size;
+            const u32 ascent_fixed    = (scale * ascent + 0x80) >> 8;
             return y - static_cast<u16>(ascent_fixed);
         }
 
-        u16 get_text_y_end(u16 descent, u16 y, u8 size)
+        u16 get_text_y_end(u8 font_size, u8 descent, u16 y, u8 requested_size)
         {
-            const u32 size_fixed    = static_cast<u32>(size) << 8;
-            const u32 scale         = (size_fixed << 16) / cReferenceSizeFixed;
-            const u32 descent_fixed = (descent * scale + 0x8000) >> 16;
+            const u32 scale           = ((u32)requested_size << 8) / font_size;
+            const u32 descent_fixed   = (scale * descent + 0x80) >> 8;
             return y + static_cast<u16>(descent_fixed);
         }
 
